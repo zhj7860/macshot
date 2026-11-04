@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Improved
+
+- **Much lower idle memory**: macshot no longer keeps a pre-built full-screen overlay window per display while it sits in the menu bar (a 3K display's panel surface alone was ~24 MB), and the boundary-snap edge index now stores one byte per pixel-direction and builds in strips instead of holding two full-resolution `Float` maps plus a full-resolution RGBA copy (~55 MB lower peak per capture). Menu-bar idle footprint is ~16 MB after launch; overlay windows are created on demand in parallel with the screenshot capture.
+
 ## [4.5.0-beta.2] - 2026-11-14
 
 ### New

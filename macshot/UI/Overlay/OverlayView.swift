@@ -121,8 +121,8 @@ class OverlayView: NSView {
             cachedEffectsScreenshot = nil
             cachedOpaqueRect = nil
             // Load the custom beautify background at session start. reset() only
-            // runs at session teardown, so the FIRST capture of a freshly-created
-            // pooled controller would otherwise render with no custom background
+            // runs at session teardown, so a freshly created overlay would
+            // otherwise render with no custom background
             // (and fall through to a gradient) if beautify was left on with the
             // custom-image style. The beautifyConfig getter is now side-effect-free,
             // so this must be done eagerly. Idempotent.

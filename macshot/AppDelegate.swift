@@ -240,9 +240,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     private var captureSessionID: UInt = 0
     private var captureTimingTrace: CaptureTimingTrace?
     /// Launch Services can deliver file/URL open requests before
-    /// `applicationDidFinishLaunching`. Defer them until launch setup and the
-    /// initial overlay-pool prewarm have completed; otherwise a cold-launch
-    /// capture can be torn down by `rebuildOverlayPool()` later in startup.
+    /// `applicationDidFinishLaunching`. Defer them until launch setup has
+    /// completed so a cold-launch capture isn't torn down by later startup work.
     private var isReadyForOpenRequests = false
     private var pendingOpenURLs: [URL] = []
     /// Capture and record actions wait for Screen Recording permission.
@@ -412,20 +411,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     }
 
     private func prewarmCapturePath() {
-        // Warm the SCShareableContent cache (cheap, async).
+        // Warm the SCShareableContent cache (cheap, async). Overlay windows are
+        // deliberately NOT pre-built: a full-screen panel surface costs ~24 MB
+        // of WindowServer/CoreAnimation memory per display and stays resident
+        // for the app's lifetime while it idles in the menu bar. Controllers
+        // are created on demand in performCapture, in parallel with the
+        // screenshot capture, and torn down when the session ends.
         ScreenCaptureManager.prewarm()
-        // Build (or rebuild) the per-screen overlay controller pool. Each
-        // controller owns a permanent NSPanel; on hotkey we reuse it rather
-        // than creating fresh. This is what keeps captures fast — WindowServer
-        // caches composition state per-window, and reused windows stay hot.
-        rebuildOverlayPool()
     }
 
     private func markScreenCaptureReady() {
         guard !isReadyForScreenCapture else { return }
         // Do not rebuild underneath a capture started through another entry
-        // point. A later capture can create any missing pooled controller on
-        // demand.
+        // point.
         if !isCapturing && recordingEngine == nil {
             prewarmCapturePath()
         }
@@ -435,36 +433,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         handleOpenURLs(urls)
     }
 
-    /// Persistent per-screen overlay controller pool. Held for the app's
-    /// lifetime so each panel's CGSWindow stays alive in WindowServer.
-    /// Rebuilt on screen-config change.
-    private var overlayControllerPool: [ObjectIdentifier: OverlayWindowController] = [:]
-
-    private func rebuildOverlayPool() {
-        // Tear down stale controllers (screens removed, etc.) before rebuilding.
-        for (_, controller) in overlayControllerPool {
-            controller.tearDown()
-        }
-        overlayControllerPool.removeAll()
-        for screen in NSScreen.screens {
-            let controller = OverlayWindowController(screen: screen)
-            overlayControllerPool[ObjectIdentifier(screen)] = controller
-            // Warm the panel: brief invisible orderFront so WindowServer
-            // allocates the surface + composes one frame. This is what the
-            // first real capture would otherwise pay.
-            controller.warmPanel()
-        }
-    }
-
-    private func pooledController(for screen: NSScreen) -> OverlayWindowController {
-        if let existing = overlayControllerPool[ObjectIdentifier(screen)] {
-            return existing
-        }
-        // New screen showed up between prewarms — create on demand.
-        let controller = OverlayWindowController(screen: screen)
-        overlayControllerPool[ObjectIdentifier(screen)] = controller
-        controller.warmPanel()
-        return controller
+    /// One overlay controller per screen, created per capture session and torn
+    /// down when it ends. Never kept alive across sessions: each holds a
+    /// full-screen window surface plus the screenshot it displayed.
+    private func makeOverlayController(for screen: NSScreen) -> OverlayWindowController {
+        OverlayWindowController(screen: screen)
     }
 
     @objc private func systemDidWake() {
@@ -647,10 +620,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         os_log(.fault, log: timingLog, "macshot terminating — thermalState=%d", ProcessInfo.processInfo.thermalState.rawValue)
         // Normal quit drains the recording writer and coordinated exports.
         // A force quit leaves the durable take in place.
-        for (_, controller) in overlayControllerPool {
+        for controller in overlayControllers {
             controller.tearDown()
         }
-        overlayControllerPool.removeAll()
+        overlayControllers.removeAll()
         HotkeyManager.shared.unregister()
         DistributedNotificationCenter.default().removeObserver(self)
         if macshotSignalLogFd >= 0 {
@@ -1553,13 +1526,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         let trace = captureTimingTrace
         let sessionID = captureSessionID
 
-        // Pull (don't construct) overlay controllers from the persistent pool.
-        // Each controller's NSPanel was created and warmed at launch / pool
-        // rebuild, so WindowServer's per-window cache is already hot.
+        // Create one overlay controller per screen for this session. Its panel
+        // is constructed now, in parallel with the screenshot capture below.
         var controllers: [OverlayWindowController] = []
         for screen in screens {
-            let controller = measureCaptureTiming("acquire pooled overlay") {
-                pooledController(for: screen)
+            let controller = measureCaptureTiming("create overlay controller") {
+                makeOverlayController(for: screen)
             }
             controller.overlayDelegate = self
             if let trace = captureTimingTrace {
@@ -1853,7 +1825,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         captureTimingTrace?.mark("dismissOverlays entered refocus=\(refocusPreviousApp)")
         autoreleasepool {
             for controller in overlayControllers {
-                controller.dismiss()
+                // Release the full-screen panel surface and the view hierarchy
+                // instead of parking them in a pool: a warmed idle panel holds
+                // ~24 MB of WindowServer/CoreAnimation memory per display.
+                controller.tearDown()
             }
             overlayControllers.removeAll()
         }

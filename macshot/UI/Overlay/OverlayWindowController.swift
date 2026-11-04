@@ -136,9 +136,8 @@ class OverlayWindowController {
     private var overlayWindow: OverlayWindow?
     private var shareDelegate: SharePickerDelegate?
     private var shareDismissTime: Date = .distantPast
-    /// Bumped by dismiss() and tearDown(). A pooled controller serves many
-    /// capture sessions, so async work (OCR) only acts if the session that
-    /// started it is still live.
+    /// Bumped by dismiss() and tearDown(). Async work (OCR) only acts if the
+    /// session that started it is still live.
     private var sessionGeneration = 0
     /// Text + QR recognition for the OCR action. Calls back on any queue.
     var recognizeTextAndQRCodes: (CGImage, @escaping (OCRScanResult) -> Void) -> Void = { cgImage, completion in
@@ -187,11 +186,9 @@ class OverlayWindowController {
         window.isOpaque = false
         window.backgroundColor = .clear
         window.hasShadow = false
-        // Idle/warmed panels are click-through by invariant. Mouse events are
-        // enabled only when a real capture is presented (showOverlay/makeKey).
-        // This guarantees that a stranded warm panel — e.g. if warmPanel()'s
-        // deferred orderOut is delayed across a sleep/wake or display
-        // reconfigure — can never swallow clicks (see issue #231).
+        // Click-through by invariant while idle. Mouse events are enabled only
+        // when a real capture is presented (showOverlay/makeKey), so an overlay
+        // can never swallow clicks outside a capture session (see issue #231).
         window.ignoresMouseEvents = true
         window.acceptsMouseMovedEvents = true
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
@@ -284,34 +281,6 @@ class OverlayWindowController {
         overlayWindow?.makeKeyAndOrderFront(nil)
         if let view = overlayView {
             overlayWindow?.makeFirstResponder(view)
-        }
-    }
-
-    /// One-shot warmup: briefly order the (currently empty) panel front so
-    /// WindowServer allocates its surface and composes one frame. We
-    /// immediately order it out — but the CGSWindow stays alive and so does
-    /// WindowServer's per-window composition cache. Next real `showOverlay()`
-    /// hits the warm path. Pair with the overlay controller pool that keeps
-    /// the panel alive across capture sessions.
-    func warmPanel() {
-        guard let panel = overlayWindow else { return }
-        // Use a barely-visible alpha so WindowServer doesn't optimize the
-        // window away as a transparent no-op. Restore after we order out.
-        let savedAlpha = panel.alphaValue
-        // Keep the warm panel click-through. Even if the deferred orderOut
-        // below is stranded (e.g. across a sleep/wake or display reconfigure),
-        // an invisible click-through window can't lock out input (issue #231).
-        panel.ignoresMouseEvents = true
-        panel.alphaValue = 0.001
-        panel.orderFrontRegardless()
-        rootView?.layoutSubtreeIfNeeded()
-        overlayView?.displayIfNeeded()
-        CATransaction.flush()
-        DispatchQueue.main.async { [weak panel] in
-            guard let panel else { return }
-            panel.orderOut(nil)
-            panel.alphaValue = savedAlpha
-            panel.ignoresMouseEvents = true
         }
     }
 
@@ -437,11 +406,10 @@ class OverlayWindowController {
         overlayView?.needsDisplay = true
     }
 
-    /// End the current capture session. The window/view/panel are KEPT ALIVE
-    /// and returned to a clean idle state, so the next session can reuse this
-    /// same controller (and crucially, the same NSPanel CGSWindow — which is
-    /// what makes the next capture instant, since WindowServer's per-window
-    /// composition cache survives `orderOut`).
+    /// End the current capture session. Clears the screenshot, annotations and
+    /// window transparency state, and orders the panel out. The window/view are
+    /// left allocated so the owner can either reuse the controller or call
+    /// `tearDown()` to release them.
     func dismiss() {
         sessionGeneration &+= 1
         saveSelectionIfNeeded()
@@ -457,17 +425,15 @@ class OverlayWindowController {
         overlayWindow?.ignoresMouseEvents = true
         overlayWindow?.orderOut(nil)
         NSCursor.arrow.set()
-        // Note: overlayDelegate is intentionally NOT cleared here; the
-        // controller-pool owner re-assigns it before each session.
-        // overlayWindow/rootView/overlayView remain alive for the next session.
+        // Note: overlayDelegate is intentionally NOT cleared here; the owner
+        // re-assigns it before each session and `tearDown()` clears it.
     }
 
-    /// Fully tear down the controller. Used when the screen config changes
-    /// (display added/removed), or app shutdown. After this the controller is
-    /// dead and a new one must be constructed.
+    /// Fully tear down the controller: ends the session, then releases the
+    /// full-screen panel, its backing surface and the view hierarchy. Used when
+    /// a capture session ends (macshot does not pool panels) or at shutdown.
     func tearDown() {
-        sessionGeneration &+= 1
-        overlayView?.reset()
+        dismiss()
         overlayView?.overlayDelegate = nil
         overlayWindow?.contentView = nil
         rootView = nil
@@ -699,8 +665,8 @@ extension OverlayWindowController: OverlayViewDelegate {
 
         recognizeTextAndQRCodes(cgImage) { [weak self] result in
             DispatchQueue.main.async {
-                // Cancelled with Escape, or this pooled overlay already serves a
-                // newer capture: the result must not dismiss it or open a window.
+                // Cancelled with Escape, or this overlay already serves a newer
+                // capture: the result must not dismiss it or open a window.
                 guard let self = self, self.sessionGeneration == generation else { return }
                 self.playCopySound()
                 self.dismiss()
