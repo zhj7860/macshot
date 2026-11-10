@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Saving a capture no longer asks for a folder.** Save writes straight into `~/Documents` (the new default save folder) and macOS asks once for Documents access; a save folder you picked yourself keeps working through its bookmark. To reach `~/Documents` without a picker, macshot is no longer sandboxed, and the captures, history and settings a sandboxed install kept in the app container are carried across on the first launch of this build.
+
 ### Improved
 
 - **Much lower idle memory**: macshot no longer keeps a pre-built full-screen overlay window per display while it sits in the menu bar (a 3K display's panel surface alone was ~24 MB), and the boundary-snap edge index now stores one byte per pixel-direction and builds in strips instead of holding two full-resolution `Float` maps plus a full-resolution RGBA copy (~55 MB lower peak per capture). Menu-bar idle footprint is ~16 MB after launch; overlay windows are created on demand in parallel with the screenshot capture.

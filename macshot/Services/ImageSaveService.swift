@@ -160,9 +160,12 @@ enum ImageSaveService {
         guard let prepared = prepare(image, completion: completion) else { return }
         // May contain "/" when the template files captures into subfolders.
         let filename = defaultRelativePath(windowTitle: windowTitle, appName: appName, format: prepared.format)
-        if let dirURL = SaveDirectoryAccess.resolveIfAccessible() {
-            writePreparedImage(prepared, to: dirURL.appendingPathComponent(filename), chooseAvailableName: true,
-                               lease: SaveDirectoryLease(alreadyAccessing: dirURL), subfoldersBelow: dirURL,
+        // The shipped default is the user's Documents and needs no prompt; a custom folder keeps
+        // its bookmark, and only one whose bookmark is gone asks again.
+        if let target = SaveDirectoryAccess.resolveForSave() {
+            writePreparedImage(prepared, to: target.url.appendingPathComponent(filename), chooseAvailableName: true,
+                               lease: SaveDirectoryLease(alreadyAccessing: target.scoped ? target.url : nil),
+                               subfoldersBelow: target.url,
                                copyPathToClipboard: copyPathToClipboard, completion: completion)
             return
         }

@@ -8,7 +8,7 @@ Native macOS screenshot & annotation tool inspired by Flameshot. Built with Swif
 - **UI:** AppKit (all windows created in code, storyboard is minimal — just app entry + main menu)
 - **Min Target:** macOS 12.3+ (Monterey)
 - **Bundle ID:** com.sw33tlie.macshot.macshot
-- **Sandbox:** Enabled (entitlements: network.client, files.user-selected.read-write, files.bookmarks.app-scope)
+- **Sandbox:** Disabled on purpose (entitlements: network.client, files.user-selected.read-write, files.bookmarks.app-scope). A sandboxed app reaches the user's real `~/Documents` only through a folder picker it must remember with a bookmark, and saving a capture must not ask for a folder; the default save folder is `~/Documents`, written directly, and macOS asks once for Documents access. `SaveDirectoryAccess.resolveForSave()` is the one decision: the configured bookmark when there is one, else `~/Documents`. A sandboxed install's Application Support folder and preferences live in the app container, so `SandboxMigration.runIfNeeded()` carries them across on the first unsandboxed launch.
 - **LSUIElement:** YES (menu bar only app, no dock icon — switches to `.regular` when editor windows are open)
 - **Permissions:** Screen Recording (Info.plist has Privacy - Screen Capture Usage Description)
 - **Xcode:** File system synchronized groups — just create .swift files in `macshot/` and Xcode picks them up automatically

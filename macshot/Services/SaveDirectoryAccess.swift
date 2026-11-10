@@ -8,6 +8,26 @@ enum SaveDirectoryAccess {
     private static let bookmarkKey = "saveDirectoryBookmark"
     private static let pathKey = "saveDirectory"
 
+    /// The user's real home directory. `NSHomeDirectory()` and `FileManager.homeDirectory…` answer
+    /// the sandbox container when a build is sandboxed; `getpwuid` answers the real home either way,
+    /// which is what a default save folder has to name.
+    static let homeDirectory: URL = {
+        if let entry = getpwuid(getuid()), let path = entry.pointee.pw_dir {
+            let real = String(cString: path)
+            if real.hasPrefix("/") { return URL(fileURLWithPath: real, isDirectory: true) }
+        }
+        return FileManager.default.homeDirectoryForCurrentUser
+    }()
+
+    /// The shipped default save folder: the user's Documents, written directly because macshot is
+    /// not sandboxed. Saving must not ask for a folder, so this is what a fresh install saves to.
+    static var defaultDirectory: URL {
+        homeDirectory.appendingPathComponent("Documents", isDirectory: true)
+    }
+
+    /// How the default folder reads in Settings and in the Save tooltip.
+    static var defaultDisplayPath: String { "~/Documents" }
+
     /// Save both the path (for display) and the security-scoped bookmark (for sandbox access).
     static func save(url: URL) {
         UserDefaults.standard.set(url.path, forKey: pathKey)
@@ -61,8 +81,23 @@ enum SaveDirectoryAccess {
         if let path = UserDefaults.standard.string(forKey: pathKey) {
             return URL(fileURLWithPath: path)
         }
-        return FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first
-            ?? FileManager.default.homeDirectoryForCurrentUser
+        return defaultDirectory
+    }
+
+    /// The folder a Save writes into without asking: the configured bookmark when there is one,
+    /// else the shipped `~/Documents`. `nil` means the user configured another folder whose
+    /// bookmark is gone, so the caller has to ask for it again.
+    /// `scoped` tells the caller whether it holds sandbox-scoped access it must release.
+    static func resolveForSave() -> (url: URL, scoped: Bool)? {
+        if let url = resolveIfAccessible() { return (url, true) }
+        let configured = UserDefaults.standard.string(forKey: pathKey)
+        // A stored path equal to the default is a folder that needs no bookmark (the app is not
+        // sandboxed), so it saves directly like the unconfigured case.
+        if configured == nil || configured == defaultDirectory.path {
+            try? FileManager.default.createDirectory(at: defaultDirectory, withIntermediateDirectories: true)
+            return (defaultDirectory, false)
+        }
+        return nil
     }
 
     /// Resolve the directory URL **without** starting scoped access.
@@ -72,7 +107,7 @@ enum SaveDirectoryAccess {
         if let path = UserDefaults.standard.string(forKey: pathKey) {
             return URL(fileURLWithPath: path)
         }
-        return FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first
+        return defaultDirectory
     }
 
     /// Stop accessing the security-scoped resource after writing is complete.
@@ -82,7 +117,7 @@ enum SaveDirectoryAccess {
 
     /// The display path for the settings UI.
     static var displayPath: String {
-        UserDefaults.standard.string(forKey: pathKey) ?? "~/Pictures"
+        UserDefaults.standard.string(forKey: pathKey) ?? defaultDisplayPath
     }
 
     // MARK: - Recording save directory (optional, falls back to general)

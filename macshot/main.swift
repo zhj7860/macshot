@@ -8,6 +8,10 @@ import Cocoa
 // screenshot tool where captured colors must be exact.
 UserDefaults.standard.set(false, forKey: "NSViewUsesAutomaticLayerBackingStores")
 
+// This build is not sandboxed (a capture saves straight into ~/Documents), so a sandboxed
+// install's container data is carried across once, before anything reads preferences or history.
+SandboxMigration.runIfNeeded()
+
 let app = NSApplication.shared
 // main.swift always runs on the main thread. We use assumeIsolated on
 // macOS 14+ (Swift 5.9 runtime) and fall back to an unchecked cast on
