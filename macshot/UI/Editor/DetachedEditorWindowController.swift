@@ -853,6 +853,7 @@ extension DetachedEditorWindowController: OverlayViewDelegate {
     func overlayViewDidRequestStopScrollCapture() {}
     func overlayViewDidRequestCancelScrollCapture() {}
     func overlayViewDidRequestToggleAutoScroll() {}
+    func overlayViewDidRequestToggleScrollAxis() {}
     func overlayViewDidRequestAccessibilityPermission() {}
     func overlayViewDidRequestInputMonitoringPermission() {}
     func overlayViewDidChangeSnapMode() {}  // Not applicable in editor mode
@@ -967,6 +968,7 @@ private class AddCaptureOverlayHandler: NSObject, OverlayWindowControllerDelegat
     func overlayDidRequestStopScrollCapture(_ controller: OverlayWindowController) {}
     func overlayDidRequestCancelScrollCapture(_ controller: OverlayWindowController) {}
     func overlayDidRequestToggleAutoScroll(_ controller: OverlayWindowController) {}
+    func overlayDidRequestToggleScrollAxis(_ controller: OverlayWindowController) {}
     func overlayDidRequestAccessibilityPermission(_ controller: OverlayWindowController) {}
     func overlayDidRequestInputMonitoringPermission(_ controller: OverlayWindowController) {}
     func overlayDidBeginSelection(_ controller: OverlayWindowController) {

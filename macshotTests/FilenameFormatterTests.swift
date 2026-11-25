@@ -19,7 +19,7 @@ final class FilenameFormatterTests: XCTestCase {
 
     func testDefaultTemplateRendersDateAndTime() {
         let name = FilenameFormatter.format(template: FilenameFormatter.defaultTemplate, date: fixedDate)
-        XCTAssertEqual(name, "Screenshot \(expectedDate("yyyy-MM-dd")) at \(expectedDate("HH-mm-ss"))")
+        XCTAssertEqual(name, "Screenshot-\(expectedDate("yyyy-MM-dd"))-at-\(expectedDate("HH-mm-ss"))")
     }
 
     func testEachTokenExpands() {
@@ -43,7 +43,7 @@ final class FilenameFormatterTests: XCTestCase {
 
     func testInsertedWindowTitlesAreLiteralNotMoreTemplateTokens() {
         XCTAssertEqual(FilenameFormatter.format(template: "Capture {window}-{index}",
-            windowTitle: "{date} {random} {index}", index: 7, date: fixedDate), "Capture {date} {random} {index}-7")
+            windowTitle: "{date} {random} {index}", index: 7, date: fixedDate), "Capture-{date}-{random}-{index}-7")
     }
 
     func testUnicodeClustersAndTrailingDotsSurviveLengthCappingCleanly() {
@@ -84,7 +84,7 @@ final class FilenameFormatterTests: XCTestCase {
             FilenameFormatter.format(template: "shot-{notAToken}", date: fixedDate),
             "shot-{notAToken}",
             "a typo should be visible in the filename, not silently swallowed")
-        XCTAssertEqual(FilenameFormatter.format(template: "Capture {unfinished", date: fixedDate), "Capture {unfinished")
+        XCTAssertEqual(FilenameFormatter.format(template: "Capture {unfinished", date: fixedDate), "Capture-{unfinished")
     }
 
     func testTokensAreCaseSensitive() {
@@ -101,7 +101,7 @@ final class FilenameFormatterTests: XCTestCase {
 
     func testWindowTitleWithSlashesIsNeutralized() {
         let name = FilenameFormatter.format(template: "{window}", windowTitle: "docs/README: draft", date: fixedDate)
-        XCTAssertEqual(name, "docs-README- draft")
+        XCTAssertEqual(name, "docs-README-draft")
     }
 
     func testPipesAreReplacedInCapturePaths() {
@@ -131,6 +131,15 @@ final class FilenameFormatterTests: XCTestCase {
 
     func testSurroundingWhitespaceIsTrimmed() {
         XCTAssertEqual(FilenameFormatter.format(template: "   shot   ", date: fixedDate), "shot")
+    }
+
+    func testSpacesNeverReachTheFilename() {
+        XCTAssertEqual(FilenameFormatter.format(template: "Screen shot", date: fixedDate), "Screen-shot")
+        XCTAssertEqual(FilenameFormatter.format(template: "a \t\n b", date: fixedDate), "a-b",
+                       "a whitespace run becomes one dash and never grows a leading/trailing one")
+        XCTAssertEqual(FilenameFormatter.format(template: "{window}", windowTitle: "Total 42 — report", date: fixedDate),
+                       "Total-42-—-report")
+        XCTAssertFalse(FilenameFormatter.format(template: FilenameFormatter.defaultTemplate).contains(" "))
     }
 
     func testNewlinesInAWindowTitleAreStripped() {
@@ -203,7 +212,7 @@ final class FilenameFormatterTests: XCTestCase {
 
     func testDefaultImageFilenameWithoutASavedTemplate() {
         withDefaults([FilenameFormatter.userDefaultsKey: nil, "imageFormat": "png"]) {
-            XCTAssertTrue(FilenameFormatter.defaultImageFilename().hasPrefix("Screenshot "))
+            XCTAssertTrue(FilenameFormatter.defaultImageFilename().hasPrefix("Screenshot-"))
             XCTAssertTrue(FilenameFormatter.defaultImageFilename().hasSuffix(".png"))
         }
     }
@@ -272,7 +281,7 @@ final class FilenameFormatterTests: XCTestCase {
     func testRecordingTakeUsesTheTemplatesFileNameWithTheApp() {
         withDefaults([FilenameFormatter.recordingNoAppUserDefaultsKey: nil]) {
             XCTAssertEqual(RecordingEngine.takeFilename(template: "{yyyy}/{MM}/{app} {HH}", appName: "Safari", date: fixedDate),
-                           "Safari \(expectedDate("HH"))")
+                           "Safari-\(expectedDate("HH"))")
             XCTAssertEqual(RecordingEngine.takeFilename(template: FilenameFormatter.defaultRecordingTemplate,
                                                         appName: nil, date: fixedDate),
                            FilenameFormatter.format(template: FilenameFormatter.defaultRecordingTemplate, date: fixedDate))

@@ -154,6 +154,10 @@
 "Highlight Mouse Clicks" = "ไฮไลต์การคลิกเมาส์";
 "Record System Audio" = "บันทึกเสียงระบบ";
 "Record Microphone" = "บันทึกไมโครโฟน";
+"Record System Audio + Microphone" = "บันทึกเสียงระบบ + ไมโครโฟน";
+"Audio Only" = "เสียงเท่านั้น";
+"Audio + Screen" = "เสียง + หน้าจอ";
+"Record only audio, or record audio together with the screen." = "บันทึกเฉพาะเสียง หรือเสียงพร้อมหน้าจอ";
 "Recording Settings" = "ตั้งค่าการบันทึก";
 
 /* Tool Options */
@@ -925,3 +929,9 @@
 "Return to stack when editor closes" = "กลับเข้ากองเมื่อปิดตัวแก้ไข";
 "  Click on preview:" = "  คลิกที่ภาพตัวอย่าง:";
 "  When opened in Editor:" = "  เมื่อเปิดในตัวแก้ไข:";
+
+
+/* Scroll capture direction */
+"Vertical" = "แนวตั้ง";
+"Horizontal" = "แนวนอน";
+"Scroll direction" = "ทิศทางการเลื่อน";

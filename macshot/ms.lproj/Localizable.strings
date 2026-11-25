@@ -155,6 +155,10 @@
 "Highlight Mouse Clicks" = "Serlahkan Klik Tetikus";
 "Record System Audio" = "Rakam Audio Sistem";
 "Record Microphone" = "Rakam Mikrofon";
+"Record System Audio + Microphone" = "Rakam Audio Sistem + Mikrofon";
+"Audio Only" = "Audio Sahaja";
+"Audio + Screen" = "Audio + Skrin";
+"Record only audio, or record audio together with the screen." = "Rakam audio sahaja, atau audio bersama skrin.";
 "Recording Settings" = "Tetapan Rakaman";
 
 /* Tool Options */
@@ -927,3 +931,9 @@
 "Return to stack when editor closes" = "Kembali ke timbunan apabila editor ditutup";
 "  Click on preview:" = "  Klik pada pratonton:";
 "  When opened in Editor:" = "  Apabila dibuka dalam Editor:";
+
+
+/* Scroll capture direction */
+"Vertical" = "Menegak";
+"Horizontal" = "Mendatar";
+"Scroll direction" = "Arah tatal";

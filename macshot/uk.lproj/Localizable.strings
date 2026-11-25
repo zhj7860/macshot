@@ -171,6 +171,10 @@
 "Highlight Mouse Clicks" = "Підсвічувати натискання миші";
 "Record System Audio" = "Записувати системне аудіо";
 "Record Microphone" = "Записувати мікрофон";
+"Record System Audio + Microphone" = "Записувати системне аудіо + мікрофон";
+"Audio Only" = "Лише звук";
+"Audio + Screen" = "Звук + екран";
+"Record only audio, or record audio together with the screen." = "Записуйте лише звук або звук разом з екраном.";
 "Recording Settings" = "Параметри запису";
 
 /* Tool Options */
@@ -927,3 +931,9 @@
 "Return to stack when editor closes" = "Повернути в стос після закриття редактора";
 "  Click on preview:" = "  Клік по превʼю:";
 "  When opened in Editor:" = "  Під час редагування:";
+
+
+/* Scroll capture direction */
+"Vertical" = "Вертикально";
+"Horizontal" = "Горизонтально";
+"Scroll direction" = "Напрямок прокручування";

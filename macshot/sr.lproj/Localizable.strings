@@ -171,6 +171,10 @@
 "Highlight Mouse Clicks" = "Истакни кликове миша";
 "Record System Audio" = "Сними системски звук";
 "Record Microphone" = "Сними микрофон";
+"Record System Audio + Microphone" = "Сними системски звук + микрофон";
+"Audio Only" = "Само звук";
+"Audio + Screen" = "Звук + екран";
+"Record only audio, or record audio together with the screen." = "Снимите само звук или звук заједно са екраном.";
 "Recording Settings" = "Подешавања снимања";
 
 /* Tool Options */
@@ -929,3 +933,9 @@
 "Return to stack when editor closes" = "Врати у гомилу након затварања уређивача";
 "  Click on preview:" = "  Клик на преглед:";
 "  When opened in Editor:" = "  При отварању у уређивачу:";
+
+
+/* Scroll capture direction */
+"Vertical" = "Усправно";
+"Horizontal" = "Водоравно";
+"Scroll direction" = "Смер померања";

@@ -64,4 +64,24 @@ final class SaveDirectoryAccessTests: XCTestCase {
                      "a configured folder whose bookmark is gone has to be chosen again")
         XCTAssertEqual(SaveDirectoryAccess.displayPath, "/tmp/macshot-somewhere-else")
     }
+
+    func testClearedPathSavesToTheDefaultWithoutAsking() throws {
+        UserDefaults.standard.set("", forKey: "saveDirectory")
+        let target = try XCTUnwrap(SaveDirectoryAccess.resolveForSave(),
+                                   "a cleared save folder means no folder chosen")
+        XCTAssertEqual(target.url.standardizedFileURL.path,
+                       SaveDirectoryAccess.defaultDirectory.standardizedFileURL.path)
+        XCTAssertFalse(target.scoped)
+        XCTAssertEqual(SaveDirectoryAccess.displayPath, "~/Documents")
+        XCTAssertEqual(SaveDirectoryAccess.directoryHint()?.lastPathComponent, "Documents")
+        XCTAssertEqual(SaveDirectoryAccess.resolve().lastPathComponent, "Documents")
+    }
+
+    func testWhitespaceOnlyPathCountsAsCleared() throws {
+        UserDefaults.standard.set("  \n", forKey: "saveDirectory")
+        let target = try XCTUnwrap(SaveDirectoryAccess.resolveForSave())
+        XCTAssertEqual(target.url.standardizedFileURL.path,
+                       SaveDirectoryAccess.defaultDirectory.standardizedFileURL.path)
+        XCTAssertEqual(SaveDirectoryAccess.displayPath, "~/Documents")
+    }
 }

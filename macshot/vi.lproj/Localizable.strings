@@ -154,6 +154,10 @@
 "Highlight Mouse Clicks" = "Nổi bật nhấp chuột";
 "Record System Audio" = "Ghi âm thanh hệ thống";
 "Record Microphone" = "Ghi micro";
+"Record System Audio + Microphone" = "Ghi âm thanh hệ thống + micro";
+"Audio Only" = "Chỉ âm thanh";
+"Audio + Screen" = "Âm thanh + màn hình";
+"Record only audio, or record audio together with the screen." = "Chỉ ghi âm thanh, hoặc âm thanh cùng với màn hình.";
 "Recording Settings" = "Cài đặt quay";
 
 /* Tool Options */
@@ -925,3 +929,9 @@
 "Return to stack when editor closes" = "Trở lại ngăn xếp khi đóng trình chỉnh sửa";
 "  Click on preview:" = "  Nhấp vào bản xem trước:";
 "  When opened in Editor:" = "  Khi mở trong trình chỉnh sửa:";
+
+
+/* Scroll capture direction */
+"Vertical" = "Dọc";
+"Horizontal" = "Ngang";
+"Scroll direction" = "Hướng cuộn";

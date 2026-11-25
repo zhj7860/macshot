@@ -154,6 +154,10 @@
 "Highlight Mouse Clicks" = "Επισήμανση κλικ ποντικιού";
 "Record System Audio" = "Εγγραφή ήχου συστήματος";
 "Record Microphone" = "Εγγραφή μικροφώνου";
+"Record System Audio + Microphone" = "Εγγραφή ήχου συστήματος + μικροφώνου";
+"Audio Only" = "Μόνο ήχος";
+"Audio + Screen" = "Ήχος + οθόνη";
+"Record only audio, or record audio together with the screen." = "Εγγράψτε μόνο ήχο ή ήχο μαζί με την οθόνη.";
 "Recording Settings" = "Ρυθμίσεις εγγραφής";
 
 /* Tool Options */
@@ -929,3 +933,9 @@
 "Return to stack when editor closes" = "Επιστροφή στη στοίβα όταν κλείσει ο επεξεργαστής";
 "  Click on preview:" = "  Κλικ στην προεπισκόπηση:";
 "  When opened in Editor:" = "  Όταν ανοίγει στον επεξεργαστή:";
+
+
+/* Scroll capture direction */
+"Vertical" = "Κατακόρυφα";
+"Horizontal" = "Οριζόντια";
+"Scroll direction" = "Κατεύθυνση κύλισης";

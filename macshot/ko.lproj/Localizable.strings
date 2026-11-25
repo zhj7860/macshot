@@ -148,6 +148,10 @@
 "Highlight Mouse Clicks" = "마우스 클릭 강조";
 "Record System Audio" = "시스템 오디오 녹음";
 "Record Microphone" = "마이크 녹음";
+"Record System Audio + Microphone" = "시스템 오디오 + 마이크 녹음";
+"Audio Only" = "오디오만";
+"Audio + Screen" = "오디오 + 화면";
+"Record only audio, or record audio together with the screen." = "오디오만 녹음하거나 화면과 함께 오디오를 녹음합니다.";
 "Recording Settings" = "녹화 설정";
 
 /* Tool Options */
@@ -927,3 +931,9 @@
 "Return to stack when editor closes" = "편집기를 닫으면 스택으로 복귀";
 "  Click on preview:" = "  미리보기 클릭 시:";
 "  When opened in Editor:" = "  편집기에서 열 때:";
+
+
+/* Scroll capture direction */
+"Vertical" = "세로";
+"Horizontal" = "가로";
+"Scroll direction" = "스크롤 방향";

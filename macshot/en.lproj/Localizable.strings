@@ -122,6 +122,10 @@
 "Highlight Mouse Clicks" = "Highlight Mouse Clicks";
 "Record System Audio" = "Record System Audio";
 "Record Microphone" = "Record Microphone";
+"Record System Audio + Microphone" = "Record System Audio + Microphone";
+"Audio Only" = "Audio Only";
+"Audio + Screen" = "Audio + Screen";
+"Record only audio, or record audio together with the screen." = "Record only audio, or record audio together with the screen.";
 "Webcam Overlay" = "Webcam Overlay";
 "Camera Access Required" = "Camera Access Required";
 "macshot needs camera permission for the webcam overlay. Open System Settings to grant access." = "macshot needs camera permission for the webcam overlay. Open System Settings to grant access.";
@@ -926,3 +930,9 @@
 "The project's image could not be read." = "The project's image could not be read.";
 "This line is %d px long. How long is it in real life?" = "This line is %d px long. How long is it in real life?";
 "e.g. 90 mm or 3 1/2 in" = "e.g. 90 mm or 3 1/2 in";
+
+
+/* Scroll capture direction */
+"Vertical" = "Vertical";
+"Horizontal" = "Horizontal";
+"Scroll direction" = "Scroll direction";

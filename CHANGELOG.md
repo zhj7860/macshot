@@ -2,9 +2,16 @@
 
 ## [Unreleased]
 
+### New
+
+- **Scroll capture can go sideways.** A direction button in the scroll-capture HUD switches a capture from scrolling down the page to scrolling across it, for wide images and side-scrolling pages; vertical stays the default. Horizontal capture stitches columns with the same alignment and sticky-content handling as vertical — the frames are transposed, stitched, and the finished image transposed back — and Auto Scroll sends horizontal scroll events. Switching direction starts the stitch over in the new direction and keeps the auto-scroll mode chosen in the HUD.
+- **Record audio without the screen.** The menu's `Record System Audio + Microphone` item now asks whether to record only audio or audio together with the screen. Audio-only takes are saved as one mixed `.m4a` in the recording folder and revealed in Finder; screen takes still follow the normal editor/export flow.
+- **Record system audio and the microphone together.** A single switch in the recording toolbar records both sources at the same time. The finished take is delivered as one mixed audio track that every player decodes, and it is saved to the recording folder (same filename template and post-recording action) like any other video. Previously both toggles produced a two-track file and a merge dialog appeared after each recording.
+
 ### Changed
 
-- **Saving a capture no longer asks for a folder.** Save writes straight into `~/Documents` (the new default save folder) and macOS asks once for Documents access; a save folder you picked yourself keeps working through its bookmark. To reach `~/Documents` without a picker, macshot is no longer sandboxed, and the captures, history and settings a sandboxed install kept in the app container are carried across on the first launch of this build.
+- **Saved names never contain spaces.** Whitespace in a rendered screenshot or recording name becomes a single `-`, so the default template saves as `Screenshot-2026-11-24-at-14.30.00.png`. Existing custom templates keep their tokens and gain the same behavior.
+- **Saving a capture no longer asks for a folder.** Save writes straight into `~/Documents` (the new default save folder) and macOS asks once for Documents access; a save folder you picked yourself keeps working through its bookmark. To reach `~/Documents` without a picker, macshot is no longer sandboxed, and the captures, history and settings a sandboxed install kept in the app container are carried across on the first launch of this build. A cleared (empty) save folder is treated as unset and also saves to `~/Documents` instead of asking.
 
 ### Improved
 

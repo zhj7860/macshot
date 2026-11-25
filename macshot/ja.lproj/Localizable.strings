@@ -148,6 +148,10 @@
 "Highlight Mouse Clicks" = "マウスクリックをハイライト";
 "Record System Audio" = "システムオーディオを録音";
 "Record Microphone" = "マイクを録音";
+"Record System Audio + Microphone" = "システムオーディオ + マイクを録音";
+"Audio Only" = "音声のみ";
+"Audio + Screen" = "音声 + 画面";
+"Record only audio, or record audio together with the screen." = "音声のみ、または画面と一緒に音声を録音します。";
 "Recording Settings" = "録画設定";
 
 /* Tool Options */
@@ -925,3 +929,9 @@
 "Return to stack when editor closes" = "エディタを閉じたらスタックに戻す";
 "  Click on preview:" = "  プレビューをクリック:";
 "  When opened in Editor:" = "  エディタで開いたとき:";
+
+
+/* Scroll capture direction */
+"Vertical" = "縦";
+"Horizontal" = "横";
+"Scroll direction" = "スクロール方向";

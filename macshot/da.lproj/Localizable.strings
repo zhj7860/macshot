@@ -159,6 +159,10 @@
 "Highlight Mouse Clicks" = "Fremh\U00E6v museklik";
 "Record System Audio" = "Optag systemlyd";
 "Record Microphone" = "Optag mikrofon";
+"Record System Audio + Microphone" = "Optag systemlyd + mikrofon";
+"Audio Only" = "Kun lyd";
+"Audio + Screen" = "Lyd + skærm";
+"Record only audio, or record audio together with the screen." = "Optag kun lyd eller lyd sammen med skærmen.";
 "Recording Settings" = "Optagelsesindstillinger";
 
 /* Tool Options */
@@ -923,3 +927,9 @@
 "Return to stack when editor closes" = "Tilbage i stakken når editoren lukkes";
 "  Click on preview:" = "  Klik på forhåndsvisning:";
 "  When opened in Editor:" = "  Når den åbnes i editoren:";
+
+
+/* Scroll capture direction */
+"Vertical" = "Lodret";
+"Horizontal" = "Vandret";
+"Scroll direction" = "Rulleretning";

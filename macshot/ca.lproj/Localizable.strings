@@ -150,6 +150,10 @@
 "Highlight Mouse Clicks" = "Ressaltar clics del ratolí";
 "Record System Audio" = "Gravar àudio del sistema";
 "Record Microphone" = "Gravar micròfon";
+"Record System Audio + Microphone" = "Gravar àudio del sistema + micròfon";
+"Audio Only" = "Només àudio";
+"Audio + Screen" = "Àudio + pantalla";
+"Record only audio, or record audio together with the screen." = "Enregistra només l'àudio o l'àudio amb la pantalla.";
 "Recording Settings" = "Configuració de gravació";
 
 /* Tool Options */
@@ -929,3 +933,9 @@
 "Return to stack when editor closes" = "Torna a la pila en tancar l’editor";
 "  Click on preview:" = "  Clic a la previsualització:";
 "  When opened in Editor:" = "  En obrir a l’editor:";
+
+
+/* Scroll capture direction */
+"Vertical" = "Vertical";
+"Horizontal" = "Horitzontal";
+"Scroll direction" = "Direcció de desplaçament";

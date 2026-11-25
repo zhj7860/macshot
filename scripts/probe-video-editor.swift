@@ -35,8 +35,6 @@ typealias S3Uploader = DisabledProbeUploader
 #endif
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate {
     private let termination = ApplicationTerminationCoordinator()
-    private var audioMerge: AudioMergeController?
-    private var completionCount = 0
     func returnFocusIfNeeded() {}
     func showFailureToast(_ text: String) { log(["error": text]) }
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -44,33 +42,15 @@ typealias S3Uploader = DisabledProbeUploader
         let appItem = NSMenuItem()
         menu.addItem(appItem)
         let appMenu = NSMenu()
-        let mixer = NSMenuItem(title: "Open Audio Mixer", action: #selector(openAudioMixer), keyEquivalent: "m")
-        mixer.target = self
-        appMenu.addItem(mixer)
-        appMenu.addItem(.separator())
         appMenu.addItem(NSMenuItem(title: "Quit Probe", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         appItem.submenu = appMenu
         NSApp.mainMenu = menu
         let env = ProcessInfo.processInfo.environment
         if let root = env["PROBE_ROOT"] { RecordingSessionStore.probeRoot = URL(fileURLWithPath: root, isDirectory: true) }
-        if Bundle.main.object(forInfoDictionaryKey: "AudioMergeProbe") as? Bool == true { openAudioMixer() }
-        else if let video = env["PROBE_VIDEO"] {
+        if let video = env["PROBE_VIDEO"] {
             VideoEditorWindowController.open(url: URL(fileURLWithPath: video), deleteOnClose: false)
         } else { VideoEditorWindowController.open(url: ProbeInput.url, deleteOnClose: false) }
         if let commands = env["PROBE_COMMANDS"] { pollCommands(path: commands) }
-    }
-    @objc private func openAudioMixer() {
-        guard audioMerge == nil else { return }
-        let controller = AudioMergeController()
-        audioMerge = controller
-        controller.show(url: ProbeInput.url) { [weak self] result in
-            guard let self else { return }
-            self.completionCount += 1
-            self.audioMerge = nil
-            self.log(["completion": self.completionCount, "original": result == ProbeInput.url,
-                      "output": result.path, "exists": FileManager.default.fileExists(atPath: result.path)])
-            VideoEditorWindowController.open(url: result, deleteOnClose: false)
-        }
     }
     /// Scripted UI driving: each line appended to the file runs once.
     private func pollCommands(path: String) {

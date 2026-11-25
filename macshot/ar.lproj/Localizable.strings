@@ -150,6 +150,10 @@
 "Highlight Mouse Clicks" = "تمييز نقرات الفأرة";
 "Record System Audio" = "تسجيل صوت النظام";
 "Record Microphone" = "تسجيل الميكروفون";
+"Record System Audio + Microphone" = "تسجيل صوت النظام + الميكروفون";
+"Audio Only" = "الصوت فقط";
+"Audio + Screen" = "الصوت + الشاشة";
+"Record only audio, or record audio together with the screen." = "سجّل الصوت فقط، أو الصوت مع الشاشة.";
 "Recording Settings" = "إعدادات التسجيل";
 
 /* Tool Options */
@@ -929,3 +933,9 @@
 "Return to stack when editor closes" = "إعادة إلى المكدس عند إغلاق المحرر";
 "  Click on preview:" = "  النقر على المعاينة:";
 "  When opened in Editor:" = "  عند الفتح في المحرر:";
+
+
+/* Scroll capture direction */
+"Vertical" = "عمودي";
+"Horizontal" = "أفقي";
+"Scroll direction" = "اتجاه التمرير";

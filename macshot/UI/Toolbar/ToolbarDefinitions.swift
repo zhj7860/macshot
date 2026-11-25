@@ -36,6 +36,7 @@ enum ToolbarButtonAction {
     case mouseHighlight
     case systemAudio
     case micAudio
+    case combinedAudio
     case detach
     case scrollCapture
     case addCapture  // editor only: capture a new region and append to the canvas
@@ -544,6 +545,14 @@ class ToolbarLayout {
             micBtn.isSelected = micOn
             micBtn.hasContextMenu = true
             buttons.append(micBtn)
+
+            // One switch for both sources. A take recorded this way is delivered
+            // as one mixed audio track (see RecordingAudioMix).
+            var combinedBtn = ToolbarButton(
+                action: .combinedAudio, sfSymbol: "waveform",
+                tooltip: L("Record System Audio + Microphone"))
+            combinedBtn.isSelected = audioOn && micOn
+            buttons.append(combinedBtn)
 
             let webcamOn = UserDefaults.standard.bool(forKey: "recordWebcam")
             let webcamSymbol: String = {

@@ -159,6 +159,10 @@
 "Highlight Mouse Clicks" = "Markera musklick";
 "Record System Audio" = "Spela in systemljud";
 "Record Microphone" = "Spela in mikrofon";
+"Record System Audio + Microphone" = "Spela in systemljud + mikrofon";
+"Audio Only" = "Endast ljud";
+"Audio + Screen" = "Ljud + skärm";
+"Record only audio, or record audio together with the screen." = "Spela in endast ljud eller ljud tillsammans med skärmen.";
 "Recording Settings" = "Inspelningsinst\U00E4llningar";
 
 /* Tool Options */
@@ -923,3 +927,9 @@
 "Return to stack when editor closes" = "Tillbaka till stapeln när redigeraren stängs";
 "  Click on preview:" = "  Klick på förhandsvisning:";
 "  When opened in Editor:" = "  När den öppnas i redigeraren:";
+
+
+/* Scroll capture direction */
+"Vertical" = "Lodrätt";
+"Horizontal" = "Vågrätt";
+"Scroll direction" = "Rullningsriktning";

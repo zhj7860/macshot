@@ -5,12 +5,14 @@ import Cocoa
 class ScrollCaptureHUDView: NSView {
 
     private let infoLabel = NSTextField(labelWithString: "")
+    private let directionButton = NSButton()
     private let autoScrollButton = NSButton()
     private let stopButton = NSButton()
     private var isAutoScrolling = false
 
     var onStop: (() -> Void)?
     var onToggleAutoScroll: (() -> Void)?
+    var onToggleAxis: (() -> Void)?
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -50,6 +52,22 @@ class ScrollCaptureHUDView: NSView {
         stopButton.action = #selector(stopClicked)
         addSubview(stopButton)
 
+        directionButton.title = L("Vertical")
+        directionButton.image = NSImage(systemSymbolName: "arrow.up.and.down",
+                                        accessibilityDescription: nil)
+        directionButton.imagePosition = .imageLeading
+        directionButton.bezelStyle = .recessed
+        directionButton.isBordered = false
+        directionButton.wantsLayer = true
+        directionButton.layer?.backgroundColor = NSColor(white: 0.3, alpha: 0.85).cgColor
+        directionButton.layer?.cornerRadius = 12
+        directionButton.contentTintColor = .white
+        directionButton.font = .systemFont(ofSize: 12, weight: .semibold)
+        directionButton.toolTip = L("Scroll direction")
+        directionButton.target = self
+        directionButton.action = #selector(directionClicked)
+        addSubview(directionButton)
+
         applyHUDColors()
         NotificationCenter.default.addObserver(
             self, selector: #selector(hudColorsChanged),
@@ -73,7 +91,8 @@ class ScrollCaptureHUDView: NSView {
     required init?(coder: NSCoder) { fatalError() }
 
     func update(stripCount: Int, pixelSize: CGSize, backingScale: CGFloat,
-                maxScrollHeight: Int = 0, autoScrolling: Bool = false) {
+                maxScrollHeight: Int = 0, autoScrolling: Bool = false,
+                axis: ScrollAxis = .vertical) {
         let pw = Int(pixelSize.width)
         let ph = Int(pixelSize.height)
         let ptW = Int(CGFloat(pw) / backingScale)
@@ -85,9 +104,18 @@ class ScrollCaptureHUDView: NSView {
             infoLabel.stringValue = L("Scroll Capture")
         }
 
+        updateAxisState(axis)
         updateAutoScrollState(autoScrolling)
         infoLabel.sizeToFit()
         layoutSubviews()
+    }
+
+    /// The button names the direction in use and switches it when clicked.
+    private func updateAxisState(_ axis: ScrollAxis) {
+        directionButton.title = axis == .vertical ? L("Vertical") : L("Horizontal")
+        directionButton.image = NSImage(
+            systemSymbolName: axis == .vertical ? "arrow.up.and.down" : "arrow.left.and.right",
+            accessibilityDescription: directionButton.title)
     }
 
     private func updateAutoScrollState(_ active: Bool) {
@@ -108,8 +136,11 @@ class ScrollCaptureHUDView: NSView {
         let btnH: CGFloat = 24
         let barH: CGFloat = 36
 
+        directionButton.sizeToFit()
+        let directionBtnW = max(76, directionButton.frame.width + 20)
+
         let infoW = infoLabel.frame.width
-        let totalW = pad + infoW + pad + autoBtnW + pad + stopBtnW + pad
+        let totalW = pad + infoW + pad + directionBtnW + pad + autoBtnW + pad + stopBtnW + pad
 
         frame.size = NSSize(width: totalW, height: barH)
 
@@ -117,10 +148,16 @@ class ScrollCaptureHUDView: NSView {
         let infoY = (barH - infoH) / 2
         infoLabel.frame.origin = NSPoint(x: pad, y: infoY)
 
+        directionButton.frame = NSRect(
+            x: pad + infoW + pad, y: (barH - btnH) / 2, width: directionBtnW, height: btnH)
         autoScrollButton.frame = NSRect(
-            x: pad + infoW + pad, y: (barH - btnH) / 2, width: autoBtnW, height: btnH)
+            x: pad + infoW + pad + directionBtnW + pad, y: (barH - btnH) / 2, width: autoBtnW, height: btnH)
         stopButton.frame = NSRect(
             x: totalW - pad - stopBtnW, y: (barH - btnH) / 2, width: stopBtnW, height: btnH)
+    }
+
+    @objc private func directionClicked() {
+        onToggleAxis?()
     }
 
     @objc private func autoScrollClicked() {

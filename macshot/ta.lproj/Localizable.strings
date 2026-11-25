@@ -154,6 +154,10 @@
 "Highlight Mouse Clicks" = "சுட்டி கிளிக்குகளை முன்னிலைப்படுத்து";
 "Record System Audio" = "கணினி ஒலியைப் பதிவு செய்";
 "Record Microphone" = "ஒலிவாங்கியைப் பதிவு செய்";
+"Record System Audio + Microphone" = "கணினி ஒலி + ஒலிவாங்கியைப் பதிவு செய்";
+"Audio Only" = "ஒலி மட்டும்";
+"Audio + Screen" = "ஒலி + திரை";
+"Record only audio, or record audio together with the screen." = "ஒலி மட்டும் பதிவு செய், அல்லது திரையுடன் ஒலி.";
 "Recording Settings" = "பதிவு அமைப்புகள்";
 
 /* Tool Options */
@@ -929,3 +933,9 @@
 "Return to stack when editor closes" = "எடிட்டர் மூடியதும் அடுக்கிற்குத் திருப்பு";
 "  Click on preview:" = "  முன்னோட்டத்தில் கிளிக்:";
 "  When opened in Editor:" = "  எடிட்டரில் திறக்கும்போது:";
+
+
+/* Scroll capture direction */
+"Vertical" = "செங்குத்து";
+"Horizontal" = "கிடைமட்டம்";
+"Scroll direction" = "ஸ்க்ரோல் திசை";

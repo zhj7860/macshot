@@ -154,6 +154,10 @@
 "Highlight Mouse Clicks" = "Muisklikken markeren";
 "Record System Audio" = "Systeemaudio opnemen";
 "Record Microphone" = "Microfoon opnemen";
+"Record System Audio + Microphone" = "Systeemaudio + microfoon opnemen";
+"Audio Only" = "Alleen audio";
+"Audio + Screen" = "Audio + scherm";
+"Record only audio, or record audio together with the screen." = "Neem alleen audio op, of audio samen met het scherm.";
 "Recording Settings" = "Opname-instellingen";
 
 /* Tool Options */
@@ -927,3 +931,9 @@
 "Return to stack when editor closes" = "Terug in stapel na sluiten editor";
 "  Click on preview:" = "  Klik op voorvertoning:";
 "  When opened in Editor:" = "  Bij openen in editor:";
+
+
+/* Scroll capture direction */
+"Vertical" = "Verticaal";
+"Horizontal" = "Horizontaal";
+"Scroll direction" = "Scrollrichting";

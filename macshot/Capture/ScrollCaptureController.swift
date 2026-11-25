@@ -24,7 +24,10 @@ import ScreenCaptureKit
 ///   fixed sidebars beside the scrolling column are cropped away.
 /// - **Continuous grabs while scrolling** — frames are taken every 50 ms during
 ///   a scroll, so a mouse wheel's large silent jumps can't outrun the overlap.
-/// - **Max height: 30,000 pixels** (configurable via UserDefaults).
+/// - **Vertical or horizontal** — the default follows content down the frame.
+///   Horizontal capture transposes each frame (`ScrollAxis`), stitches columns
+///   with the same pipeline, and transposes the finished image back.
+/// - **Max size along the scroll: 30,000 pixels** (configurable via UserDefaults).
 @MainActor
 final class ScrollCaptureController {
 
@@ -35,8 +38,11 @@ final class ScrollCaptureController {
     private(set) var stitchedPixelSize: CGSize = .zero
     private(set) var isActive: Bool = false
     private var isCancelled: Bool = false
+    /// Direction the session follows; vertical until the user switches it.
+    private(set) var axis: ScrollAxis = .vertical
 
-    /// Current estimated total height of the final image (points).
+    /// Current estimated size of the final image along the scrolling axis, in
+    /// points (height when vertical, width when horizontal).
     var estimatedTotalHeight: CGFloat {
         guard let merged = stitcher?.image else { return 0 }
         return CGFloat(merged.height) / backingScale
@@ -103,6 +109,10 @@ final class ScrollCaptureController {
     // Guard: only one capture at a time
     private var isCapturing: Bool = false
 
+    /// Bumped when a session starts over or ends. Captures still in flight from
+    /// an older run stop touching the stitcher (a direction switch restarts).
+    private var runID: Int = 0
+
     // Target app for scroll events
     private var targetAppPID: pid_t = 0
 
@@ -120,8 +130,13 @@ final class ScrollCaptureController {
 
     // MARK: - Session
 
-    func startSession() async {
-        guard !isActive, !isCancelled else { return }
+    /// - Parameter autoScroll: overrides the saved preference when the session
+    ///   starts over (a direction switch keeps the mode chosen in the HUD).
+    func startSession(autoScroll: Bool? = nil) async {
+        // `didDeliver` also blocks a restart that was scheduled just before a
+        // Stop: the session is over and must not come back to life.
+        guard !isActive, !isCancelled, !didDeliver else { return }
+        let run = runID
 
         let ud = UserDefaults.standard
         autoScrollEnabled = ud.object(forKey: "scrollAutoScrollEnabled") as? Bool ?? false
@@ -143,11 +158,14 @@ final class ScrollCaptureController {
         resolveTargetApp()
 
         // Capture first settled frame
-        guard let firstFrame = await captureSettledFrame() else {
-            if !isCancelled { onSessionDone?(nil) }
+        guard let captured = await captureSettledFrame(run: run) else {
+            if !isCancelled, run == runID { onSessionDone?(nil) }
             return
         }
-        guard !isCancelled else { return }
+        guard !isCancelled, run == runID else { return }
+        // Horizontal capture stitches columns: the stitcher reads the frame
+        // transposed, so grown "rows" become grown columns once it comes back.
+        let firstFrame = axis.oriented(captured) ?? captured
 
         isActive = true
         stitcher = ScrollStitcher(firstFrame: firstFrame, handlesPinnedContent: frozenDetectionEnabled)
@@ -158,15 +176,53 @@ final class ScrollCaptureController {
         stripCount = 1
 
         stitchedImage = firstFrame
-        stitchedPixelSize = CGSize(width: CGFloat(firstFrame.width), height: CGFloat(firstFrame.height))
+        stitchedPixelSize = axis.pixelSize(of: firstFrame)
         emitPreview()
         onStripAdded?(stripCount)
 
-        if autoScrollEnabled {
-            startAutoScroll()
+        if autoScroll ?? autoScrollEnabled {
+            startAutoScroll(run: run)
         } else {
-            startManualScrollMonitors()
+            startManualScrollMonitors(run: run)
         }
+    }
+
+    /// Switches the direction the capture follows. A stitch already collected
+    /// is in the old orientation, so it starts over in the new one; before the
+    /// first strip lands that costs nothing, and the auto-scroll mode the user
+    /// picked in the HUD is kept.
+    func toggleAxis() {
+        axis = axis.toggled
+        guard isActive else { return }  // a startup still in flight reads the new axis
+        restartSession()
+    }
+
+    private func restartSession() {
+        let autoScroll = autoScrollActive
+        runID &+= 1
+        stopTimersAndMonitors()
+        isActive = false
+        stitcher = nil
+        stripCount = 0
+        stitchedImage = nil
+        stitchedPixelSize = .zero
+        matchNotFoundCount = 0
+        didReportFirstMatch = false
+        hasScrolledOnce = false
+        consecutiveZeroShifts = 0
+        Task { await startSession(autoScroll: autoScroll) }
+    }
+
+    /// Stops auto-scroll, the post-scroll timers and the scroll monitors.
+    /// In-flight captures see a newer `runID` and leave the new session alone.
+    private func stopTimersAndMonitors() {
+        autoScrollTask?.cancel(); autoScrollTask = nil
+        settlementTimer?.invalidate(); settlementTimer = nil
+        burstTimer?.invalidate(); burstTimer = nil
+        pendingCaptureTask?.cancel(); pendingCaptureTask = nil
+        if let m = scrollMonitorGlobal { NSEvent.removeMonitor(m); scrollMonitorGlobal = nil }
+        if let m = scrollMonitorLocal  { NSEvent.removeMonitor(m); scrollMonitorLocal  = nil }
+        autoScrollActive = false
     }
 
     private var didDeliver = false
@@ -181,6 +237,7 @@ final class ScrollCaptureController {
         // same session, and a second stop must not report an empty result.
         guard !didDeliver, isActive || !isCancelled else { return }
         didDeliver = true
+        runID &+= 1
         guard isActive else {
             isCancelled = true
             onSessionDone?(nil)
@@ -188,17 +245,12 @@ final class ScrollCaptureController {
         }
         isActive = false
 
-        autoScrollTask?.cancel(); autoScrollTask = nil
-        settlementTimer?.invalidate(); settlementTimer = nil
-        burstTimer?.invalidate(); burstTimer = nil
-        pendingCaptureTask?.cancel(); pendingCaptureTask = nil
-        if let m = scrollMonitorGlobal { NSEvent.removeMonitor(m); scrollMonitorGlobal = nil }
-        if let m = scrollMonitorLocal  { NSEvent.removeMonitor(m); scrollMonitorLocal  = nil }
-        autoScrollActive = false
+        stopTimersAndMonitors()
 
-        // Deliver final image
+        // Deliver final image, back in screen orientation.
         let finalImage: NSImage?
-        if let cg = stitcher?.finish() {
+        if let stitched = stitcher?.finish() {
+            let cg = axis.oriented(stitched) ?? stitched
             let ptSize = CGSize(width: CGFloat(cg.width) / backingScale,
                                 height: CGFloat(cg.height) / backingScale)
             finalImage = NSImage(cgImage: cg, size: ptSize)
@@ -215,14 +267,9 @@ final class ScrollCaptureController {
         // already been dismissed.
         isCancelled = true
         isActive = false
+        runID &+= 1
 
-        autoScrollTask?.cancel(); autoScrollTask = nil
-        settlementTimer?.invalidate(); settlementTimer = nil
-        burstTimer?.invalidate(); burstTimer = nil
-        pendingCaptureTask?.cancel(); pendingCaptureTask = nil
-        if let m = scrollMonitorGlobal { NSEvent.removeMonitor(m); scrollMonitorGlobal = nil }
-        if let m = scrollMonitorLocal  { NSEvent.removeMonitor(m); scrollMonitorLocal  = nil }
-        autoScrollActive = false
+        stopTimersAndMonitors()
     }
 
     // MARK: - Target window/app management
@@ -312,13 +359,13 @@ final class ScrollCaptureController {
 
     /// Captures a settled frame: grabs frames until two consecutive TIFF representations
     /// match byte-for-byte. Used for initial capture and manual scroll mode.
-    private func captureSettledFrame() async -> CGImage? {
+    private func captureSettledFrame(run: Int) async -> CGImage? {
         var previousTIFF: Data? = nil
         var previousCG: CGImage? = nil
         var waitNs: UInt64 = 10_000_000  // 10ms
 
         for _ in 0..<30 {
-            guard !isCancelled else { return nil }
+            guard !isCancelled, run == runID else { return nil }
             guard let cg = captureFrame() else {
                 try? await Task.sleep(nanoseconds: 30_000_000)
                 continue
@@ -330,7 +377,7 @@ final class ScrollCaptureController {
                     cont.resume(returning: bitmapRep.tiffRepresentation)
                 }
             }
-            guard !isCancelled else { return nil }
+            guard !isCancelled, run == runID else { return nil }
             guard let currentTIFF = tiffData else {
                 try? await Task.sleep(nanoseconds: waitNs)
                 waitNs = min(waitNs * 3 / 2, 80_000_000)
@@ -353,7 +400,7 @@ final class ScrollCaptureController {
 
     // MARK: - Auto-scroll
 
-    private func startAutoScroll() {
+    private func startAutoScroll(run: Int) {
         autoScrollActive = true
         onAutoScrollStarted?()
 
@@ -382,25 +429,36 @@ final class ScrollCaptureController {
 
         autoScrollTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 300_000_000)
-            guard let self = self, self.isActive, self.autoScrollActive else { return }
-            await self.autoScrollLoop(linesPerTick: linesPerTick, burstCount: burstCount)
+            guard let self = self, self.isActive, self.autoScrollActive, run == self.runID else { return }
+            await self.autoScrollLoop(linesPerTick: linesPerTick, burstCount: burstCount, run: run)
         }
     }
 
+    /// Sends one synthetic scroll step: down the frame, or right across it.
+    private func postScroll(lines: Int32) {
+        let event: CGEvent?
+        switch axis {
+        case .vertical:
+            event = CGEvent(scrollWheelEvent2Source: nil, units: .line, wheelCount: 1,
+                            wheel1: -lines, wheel2: 0, wheel3: 0)
+        case .horizontal:
+            // With two wheels, `wheel2` is the horizontal axis.
+            event = CGEvent(scrollWheelEvent2Source: nil, units: .line, wheelCount: 2,
+                            wheel1: 0, wheel2: -lines, wheel3: 0)
+        }
+        // Post at the session tap, not the HID tap. Mouse utilities such as
+        // Mac Mouse Fix and LinearMouse rewrite wheel events at the HID tap and
+        // would apply the user's "reverse direction" setting to this synthetic
+        // event too, scrolling the page up instead of down (#186).
+        event?.post(tap: .cgSessionEventTap)
+    }
+
     /// Core auto-scroll loop: scroll → captureAndCompare → repeat.
-    private func autoScrollLoop(linesPerTick: Int32, burstCount: Int) async {
-        while isActive && autoScrollActive {
+    private func autoScrollLoop(linesPerTick: Int32, burstCount: Int, run: Int) async {
+        while isActive && autoScrollActive && run == runID {
             // Post scroll event(s)
             for _ in 0..<burstCount {
-                if let event = CGEvent(scrollWheelEvent2Source: nil, units: .line, wheelCount: 1,
-                                       wheel1: -linesPerTick, wheel2: 0, wheel3: 0) {
-                    // Post at the session tap, not the HID tap. Mouse utilities
-                    // such as Mac Mouse Fix and LinearMouse rewrite wheel
-                    // events at the HID tap and would apply the user's "reverse
-                    // direction" setting to this synthetic event too, scrolling
-                    // the page up instead of down (#186).
-                    event.post(tap: .cgSessionEventTap)
-                }
+                postScroll(lines: linesPerTick)
             }
 
             // captureAndCompare: settle, capture, compare, stitch.
@@ -412,8 +470,9 @@ final class ScrollCaptureController {
                 continue
             }
             isCapturing = true
-            let success = await captureAndCompare()
+            let success = await captureAndCompare(run: run)
             isCapturing = false
+            guard run == runID else { return }
 
             if !success {
                 matchNotFoundCount += 1
@@ -425,7 +484,8 @@ final class ScrollCaptureController {
                 matchNotFoundCount = 0
             }
 
-            // Check max height
+            // Check the size limit. The stitcher grows along "rows", which are
+            // the image's width when the capture is horizontal.
             if let merged = stitcher?.image, maxScrollHeight > 0 {
                 if merged.height >= maxScrollHeight {
                     stopSession()
@@ -442,7 +502,7 @@ final class ScrollCaptureController {
     /// Waits for pixel-perfect settlement via TIFF comparison, then computes the scroll
     /// offset via Vision and merges new content into the accumulated image.
     /// Returns true if a match was found, false if no shift detected.
-    private func captureAndCompare() async -> Bool {
+    private func captureAndCompare(run: Int) async -> Bool {
         // Initial delay for scroll animation to begin
         try? await Task.sleep(nanoseconds: 50_000_000)  // 50ms
 
@@ -452,7 +512,7 @@ final class ScrollCaptureController {
         var waitNs: UInt64 = 12_000_000
 
         for _ in 0..<30 {
-            guard isActive else { return false }
+            guard isActive, run == runID else { return false }
 
             guard let cg = captureFrame() else {
                 try? await Task.sleep(nanoseconds: 30_000_000)
@@ -482,7 +542,7 @@ final class ScrollCaptureController {
             waitNs = min(waitNs * 3 / 2, 80_000_000)
         }
 
-        guard let currentFrame = settledCG else { return false }
+        guard isActive, run == runID, let currentFrame = settledCG else { return false }
         switch process(currentFrame) {
         case .appended:
             consecutiveZeroShifts = 0
@@ -502,25 +562,28 @@ final class ScrollCaptureController {
 
     /// Feeds a frame to the stitcher and reports new strips.
     /// The mouse pointer's area in a captured frame (pixels, top-left origin),
-    /// generous enough for the large accessibility pointer sizes.
+    /// generous enough for the large accessibility pointer sizes. The frame is
+    /// already oriented for the axis, so the rect is mapped the same way.
     private func pointerRect(in frame: CGImage) -> CGRect? {
         let mouse = NSEvent.mouseLocation
         guard captureRect.insetBy(dx: -40, dy: -40).contains(mouse) else { return nil }
-        let scale = CGFloat(frame.width) / max(1, captureRect.width)
+        let frameWidth = axis.isHorizontal ? CGFloat(frame.height) : CGFloat(frame.width)
+        let scale = frameWidth / max(1, captureRect.width)
         let x = (mouse.x - captureRect.minX) * scale, y = (captureRect.maxY - mouse.y) * scale
         // The hotspot is the arrow's tip: the pointer extends down and right.
-        return CGRect(x: x - 8 * scale, y: y - 8 * scale, width: 48 * scale, height: 56 * scale)
+        return axis.oriented(CGRect(x: x - 8 * scale, y: y - 8 * scale, width: 48 * scale, height: 56 * scale))
     }
 
     private func process(_ frame: CGImage) -> ScrollStitcher.Outcome {
-        guard let stitcher else { return .noMatch }
+        guard let stitcher, let frame = axis.oriented(frame) else { return .noMatch }
         let outcome = stitcher.add(frame, pointer: pointerRect(in: frame))
         if outcome == .appended {
             hasScrolledOnce = true
             stripCount += 1
             didReportFirstMatch = true
             stitchedImage = stitcher.image
-            stitchedPixelSize = CGSize(width: CGFloat(stitcher.image.width), height: CGFloat(stitcher.image.height))
+            stitchedPixelSize = axis.pixelSize(of: stitcher.image)
+
             emitPreview()
             onStripAdded?(stripCount)
         }
@@ -535,24 +598,26 @@ final class ScrollCaptureController {
     func toggleAutoScroll() {
         if autoScrollActive {
             stopAutoScroll()
-            startManualScrollMonitors()
+            startManualScrollMonitors(run: runID)
         } else {
             if let m = scrollMonitorGlobal { NSEvent.removeMonitor(m); scrollMonitorGlobal = nil }
             if let m = scrollMonitorLocal  { NSEvent.removeMonitor(m); scrollMonitorLocal  = nil }
             settlementTimer?.invalidate(); settlementTimer = nil
             burstTimer?.invalidate(); burstTimer = nil
-            startAutoScroll()
+            startAutoScroll(run: runID)
         }
     }
 
     // MARK: - Manual scroll
 
-    private func startManualScrollMonitors() {
+    private func startManualScrollMonitors(run: Int) {
         scrollMonitorGlobal = NSEvent.addGlobalMonitorForEvents(matching: .scrollWheel) { [weak self] _ in
-            self?.onManualScrollEvent()
+            guard let self, run == self.runID else { return }
+            self.onManualScrollEvent(run: run)
         }
         scrollMonitorLocal = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
-            self?.onManualScrollEvent()
+            guard let self, run == self.runID else { return event }
+            self.onManualScrollEvent(run: run)
             return event
         }
     }
@@ -561,15 +626,15 @@ final class ScrollCaptureController {
     /// per notch and then animates the page silently. Grabbing only on events
     /// let a fast wheel move the page past the overlap between grabs (#484), so
     /// keep grabbing on a timer until the page has been still for a moment.
-    private func onManualScrollEvent() {
-        guard isActive else { return }
+    private func onManualScrollEvent(run: Int) {
+        guard isActive, run == runID else { return }
         lastScrollEventTime = ProcessInfo.processInfo.systemUptime
         settlementTimer?.invalidate(); settlementTimer = nil
         guard burstTimer == nil else { return }
         grabAndProcess()
         burstTimer = Timer.scheduledTimer(withTimeInterval: manualCaptureInterval, repeats: true) { [weak self] timer in
             MainActor.assumeIsolated {
-                guard let self, self.isActive else { timer.invalidate(); return }
+                guard let self, self.isActive, run == self.runID else { timer.invalidate(); return }
                 if ProcessInfo.processInfo.systemUptime - self.lastScrollEventTime > self.burstTail {
                     timer.invalidate()
                     self.burstTimer = nil
@@ -578,7 +643,7 @@ final class ScrollCaptureController {
                                                                 repeats: false) { [weak self] _ in
                         MainActor.assumeIsolated {
                             guard let self else { return }
-                            Task { @MainActor in await self.settledCapture() }
+                            Task { @MainActor in await self.settledCapture(run: run) }
                         }
                     }
                     return
@@ -598,18 +663,21 @@ final class ScrollCaptureController {
     }
 
     /// Final settled capture after scrolling stops — uses full TIFF settlement.
-    private func settledCapture() async {
-        guard isActive, !isCapturing else { return }
+    private func settledCapture(run: Int) async {
+        guard isActive, !isCapturing, run == runID else { return }
         isCapturing = true
         defer { isCapturing = false }
 
-        let _ = await captureAndCompare()
+        let _ = await captureAndCompare(run: run)
     }
 
     // MARK: - Preview
 
     private func emitPreview() {
-        guard let cg = stitcher?.image, let callback = onPreviewUpdated else { return }
+        guard let stitched = stitcher?.image, let callback = onPreviewUpdated else { return }
+        // The preview is a picture of the page, so horizontal capture shows the
+        // stitched columns upright again.
+        let cg = axis.oriented(stitched) ?? stitched
         let ptSize = CGSize(width: CGFloat(cg.width) / backingScale,
                             height: CGFloat(cg.height) / backingScale)
         callback(NSImage(cgImage: cg, size: ptSize))

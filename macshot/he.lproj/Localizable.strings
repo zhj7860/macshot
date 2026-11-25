@@ -150,6 +150,10 @@
 "Highlight Mouse Clicks" = "הדגש לחיצות עכבר";
 "Record System Audio" = "הקלט שמע מערכת";
 "Record Microphone" = "הקלט מיקרופון";
+"Record System Audio + Microphone" = "הקלט שמע מערכת + מיקרופון";
+"Audio Only" = "שמע בלבד";
+"Audio + Screen" = "שמע + מסך";
+"Record only audio, or record audio together with the screen." = "הקליטו שמע בלבד או שמע יחד עם המסך.";
 "Recording Settings" = "הגדרות הקלטה";
 
 /* Tool Options */
@@ -929,3 +933,9 @@
 "Return to stack when editor closes" = "החזר לערימה כשהעורך נסגר";
 "  Click on preview:" = "  לחיצה על התצוגה המקדימה:";
 "  When opened in Editor:" = "  בעת פתיחה בעורך:";
+
+
+/* Scroll capture direction */
+"Vertical" = "אנכי";
+"Horizontal" = "אופקי";
+"Scroll direction" = "כיוון גלילה";

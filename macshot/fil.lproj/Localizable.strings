@@ -155,6 +155,10 @@
 "Highlight Mouse Clicks" = "I-highlight ang mga Pag-click ng Mouse";
 "Record System Audio" = "I-record ang Audio ng Sistema";
 "Record Microphone" = "I-record ang Mikropono";
+"Record System Audio + Microphone" = "I-record ang Audio ng Sistema + Mikropono";
+"Audio Only" = "Audio Lang";
+"Audio + Screen" = "Audio + Screen";
+"Record only audio, or record audio together with the screen." = "I-record ang audio lang, o audio kasama ang screen.";
 "Recording Settings" = "Mga Setting ng Pag-record";
 
 /* Tool Options */
@@ -927,3 +931,9 @@
 "Return to stack when editor closes" = "Ibalik sa stack kapag isinara ang editor";
 "  Click on preview:" = "  Pag-click sa preview:";
 "  When opened in Editor:" = "  Kapag binuksan sa Editor:";
+
+
+/* Scroll capture direction */
+"Vertical" = "Patayo";
+"Horizontal" = "Pahalang";
+"Scroll direction" = "Direksyon ng pag-scroll";

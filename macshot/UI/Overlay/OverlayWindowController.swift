@@ -75,6 +75,7 @@ protocol OverlayWindowControllerDelegate: AnyObject {
     func overlayDidRequestStopScrollCapture(_ controller: OverlayWindowController)
     func overlayDidRequestCancelScrollCapture(_ controller: OverlayWindowController)
     func overlayDidRequestToggleAutoScroll(_ controller: OverlayWindowController)
+    func overlayDidRequestToggleScrollAxis(_ controller: OverlayWindowController)
     func overlayDidRequestAccessibilityPermission(_ controller: OverlayWindowController)
     func overlayDidRequestInputMonitoringPermission(_ controller: OverlayWindowController)
     func overlayDidBeginSelection(_ controller: OverlayWindowController)
@@ -366,8 +367,9 @@ class OverlayWindowController {
     }
 
     func setScrollCaptureState(isActive: Bool, stripCount: Int = 0, pixelSize: CGSize = .zero,
-                               maxHeight: Int = 0) {
+                               maxHeight: Int = 0, axis: ScrollAxis = .vertical) {
         overlayView?.scrollCaptureMaxHeight = maxHeight
+        overlayView?.scrollCaptureAxis = axis
         if isActive {
             // Make the overlay window fully transparent + pass-through so the
             // user sees AND interacts with the live app underneath. We must:
@@ -398,10 +400,12 @@ class OverlayWindowController {
     }
 
     func updateScrollCaptureProgress(stripCount: Int, pixelSize: CGSize,
-                                     autoScrolling: Bool = false) {
+                                     autoScrolling: Bool = false,
+                                     axis: ScrollAxis = .vertical) {
         overlayView?.scrollCaptureStripCount = stripCount
         overlayView?.scrollCapturePixelSize = pixelSize
         overlayView?.scrollCaptureAutoScrolling = autoScrolling
+        overlayView?.scrollCaptureAxis = axis
         overlayView?.updateScrollCaptureHUD()
         overlayView?.needsDisplay = true
     }
@@ -793,6 +797,10 @@ extension OverlayWindowController: OverlayViewDelegate {
 
     func overlayViewDidRequestToggleAutoScroll() {
         overlayDelegate?.overlayDidRequestToggleAutoScroll(self)
+    }
+
+    func overlayViewDidRequestToggleScrollAxis() {
+        overlayDelegate?.overlayDidRequestToggleScrollAxis(self)
     }
 
     func overlayViewDidRequestAccessibilityPermission() {

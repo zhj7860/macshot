@@ -37,7 +37,7 @@
 ### Why macshot?
 
 - **Capture & annotate in one flow** — select a region, draw arrows/text/shapes/blur, copy to clipboard. One hotkey, zero friction.
-- **Screen recording with built-in editor** — record any area or full screen as MP4/GIF with system audio + microphone. Audio merge dialog with per-track volume control. Trim and export without leaving the app.
+- **Screen recording with built-in editor** — record any area or full screen as MP4/GIF with system audio + microphone. One toggle records both at once into a single mixed track. Trim and export without leaving the app.
 - **Scroll capture** — select a region and scroll. macshot stitches it into one seamless tall (or wide) image automatically.
 - **Upload anywhere** — one-click upload to Google Drive, imgbb, or any S3-compatible service (Cloudflare R2, AWS S3, MinIO, etc.). Link copied to clipboard instantly.
 - **Lightweight & native** — lives in your menu bar. Built with Swift and AppKit, not a web browser in disguise.
@@ -73,7 +73,7 @@ brew install --cask macshot
 - **Window snap** — hover over a window and click to capture it exactly; `Tab` toggles snap, `F` for full screen
 - **Resolution & aspect presets** — set an exact pixel size or lock an aspect ratio (1:1, 4:3, 16:9, 9:16, …) before or after selecting; editable width/height fields
 - **Boundary snap** — selection edges snap to strong color edges (UI lines, window borders) while dragging or resizing; hold `Option` to bypass
-- **Scroll capture** — auto-detects vertical or horizontal scrolling, stitches with Apple Vision, live preview panel beside the capture region
+- **Scroll capture** — scrolls down the page by default and across it with one click on the HUD's direction button, stitches with Apple Vision, live preview panel beside the capture region
 - **Capture delay** — 3/5/10/30 second countdown before capture, set via menu bar. Escape to cancel.
 - **Multi-monitor** — captures all screens simultaneously; drag a selection across screens for a stitched image
 - **Quick save** — `Cmd+Shift+S` to select and save/copy instantly without annotation. Enter key also saves/copies based on preference.
@@ -100,6 +100,8 @@ brew install --cask macshot
 - **MP4 (H.264)** up to 120fps or **GIF** (5/10/15fps)
 - **System audio capture** — toggle on/off, excludes macshot's own sounds
 - **Microphone recording** — record voice narration alongside screen capture (permission requested on first use)
+- **System audio + microphone together** — one switch records both at the same time and saves a single mixed audio track with the video
+- **Audio-only recording** — record the same sources without the screen; the menu asks whether to include the screen, and audio-only takes save as one mixed `.m4a`
 - **Mouse click highlights** — visual ripple on clicks during recording
 - **Selection border** — visible capture region outline during recording
 - **Menu bar stop button** — stop recording from the menu bar icon (appears even if icon is hidden)

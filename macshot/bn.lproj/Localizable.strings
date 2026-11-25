@@ -153,6 +153,10 @@
 "Highlight Mouse Clicks" = "মাউস ক্লিক হাইলাইট করুন";
 "Record System Audio" = "সিস্টেম অডিও রেকর্ড";
 "Record Microphone" = "মাইক্রোফোন রেকর্ড";
+"Record System Audio + Microphone" = "সিস্টেম অডিও + মাইক্রোফোন রেকর্ড";
+"Audio Only" = "শুধু অডিও";
+"Audio + Screen" = "অডিও + স্ক্রিন";
+"Record only audio, or record audio together with the screen." = "শুধু অডিও রেকর্ড করুন, অথবা স্ক্রিনসহ অডিও।";
 "Recording Settings" = "রেকর্ডিং সেটিংস";
 
 /* Tool Options */
@@ -929,3 +933,9 @@
 "Return to stack when editor closes" = "এডিটর বন্ধ হলে স্ট্যাকে ফেরান";
 "  Click on preview:" = "  প্রিভিউতে ক্লিক:";
 "  When opened in Editor:" = "  এডিটরে খোলার সময়:";
+
+
+/* Scroll capture direction */
+"Vertical" = "উল্লম্ব";
+"Horizontal" = "অনুভূমিক";
+"Scroll direction" = "স্ক্রল করার দিক";

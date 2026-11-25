@@ -120,6 +120,20 @@ final class AudioTrackMixerTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: source), sourceBytes, "Mixing must retain the original take")
     }
 
+    func testAudioOnlyExportDropsVideoAndMixesBothTracksIntoOne() async throws {
+        let source = try await source()
+        let destination = directory.appendingPathComponent("audio.m4a")
+        try await AudioTrackMixer.exportAudioOnly(source: source, destination: destination, volumes: [1, 1])
+        let asset = AVAsset(url: destination)
+        XCTAssertEqual(asset.tracks(withMediaType: .video).count, 0,
+                       "an audio-only take must not carry the clocking video track")
+        XCTAssertEqual(asset.tracks(withMediaType: .audio).count, 1)
+        let samples = try audio(destination)
+        XCTAssertGreaterThan(amplitude(samples, frequency: 440), 0.05)
+        XCTAssertGreaterThan(amplitude(samples, frequency: 880), 0.05)
+        XCTAssertEqual(asset.duration.seconds, 2, accuracy: 0.04)
+    }
+
     func testCancellationAndInvalidVolumesDoNotPublishOrAlterTheOriginal() async throws {
         let source = try await source()
         let original = try Data(contentsOf: source)

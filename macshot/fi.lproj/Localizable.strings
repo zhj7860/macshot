@@ -159,6 +159,10 @@
 "Highlight Mouse Clicks" = "Korosta hiiren napsautukset";
 "Record System Audio" = "Nauhoita järjestelmän ääni";
 "Record Microphone" = "Nauhoita mikrofoni";
+"Record System Audio + Microphone" = "Nauhoita järjestelmän ääni + mikrofoni";
+"Audio Only" = "Vain ääni";
+"Audio + Screen" = "Ääni + näyttö";
+"Record only audio, or record audio together with the screen." = "Tallenna vain ääni tai ääni näytön kanssa.";
 "Recording Settings" = "Nauhoitusasetukset";
 
 /* Tool Options */
@@ -923,3 +927,9 @@
 "Return to stack when editor closes" = "Palauta pinoon, kun editori suljetaan";
 "  Click on preview:" = "  Esikatselun napsautus:";
 "  When opened in Editor:" = "  Kun avataan editorissa:";
+
+
+/* Scroll capture direction */
+"Vertical" = "Pystysuunta";
+"Horizontal" = "Vaakasuunta";
+"Scroll direction" = "Vierityssuunta";

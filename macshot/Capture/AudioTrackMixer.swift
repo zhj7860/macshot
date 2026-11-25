@@ -22,6 +22,24 @@ enum AudioTrackMixer {
     nonisolated static func export(source: URL, destination: URL, volumes: [Float],
                                   cancellation: MediaExportCancellation = MediaExportCancellation(),
                                   progress: @escaping @Sendable (Double) -> Void = { _ in }) async throws {
+        try await run(source: source, destination: destination, volumes: volumes,
+                      includeVideo: true, cancellation: cancellation, progress: progress)
+    }
+
+    /// Mixes the take's audio tracks into one AAC track and writes an `.m4a`.
+    /// Used by audio-only recordings: the tiny video track kept beside the
+    /// durable original is dropped so the delivered file is audio only.
+    nonisolated static func exportAudioOnly(source: URL, destination: URL, volumes: [Float],
+                                            cancellation: MediaExportCancellation = MediaExportCancellation(),
+                                            progress: @escaping @Sendable (Double) -> Void = { _ in }) async throws {
+        try await run(source: source, destination: destination, volumes: volumes,
+                      includeVideo: false, cancellation: cancellation, progress: progress)
+    }
+
+    nonisolated private static func run(source: URL, destination: URL, volumes: [Float],
+                                        includeVideo: Bool,
+                                        cancellation: MediaExportCancellation,
+                                        progress: @escaping @Sendable (Double) -> Void) async throws {
         try Task.checkCancellation()
         try cancellation.check()
         guard source.resolvingSymlinksInPath() != destination.resolvingSymlinksInPath() else {
@@ -30,7 +48,8 @@ enum AudioTrackMixer {
         let prepared: Prepared = try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 continuation.resume(with: Result { try prepare(source: source, destination: destination,
-                                                               volumes: volumes, progress: progress) })
+                                                               volumes: volumes, includeVideo: includeVideo,
+                                                               progress: progress) })
             }
         }
         try await withTaskCancellationHandler(operation: {
@@ -46,13 +65,18 @@ enum AudioTrackMixer {
     }
 
     nonisolated private static func prepare(source: URL, destination: URL, volumes: [Float],
+                                            includeVideo: Bool,
                                             progress: @escaping @Sendable (Double) -> Void) throws -> Prepared {
         let asset = AVAsset(url: source)
         let audioTracks = asset.tracks(withMediaType: .audio)
-        guard audioTracks.count >= 2, volumes.count == audioTracks.count,
+        let video = includeVideo ? asset.tracks(withMediaType: .video).first : nil
+        var sourceVideo: (track: AVAssetTrack, format: CMFormatDescription)?
+        if let video, let formats = video.formatDescriptions as? [CMFormatDescription], let format = formats.first {
+            sourceVideo = (video, format)
+        }
+        guard !audioTracks.isEmpty, volumes.count == audioTracks.count,
               volumes.allSatisfy({ $0.isFinite && (0...1).contains($0) }),
-              let video = asset.tracks(withMediaType: .video).first,
-              let formats = video.formatDescriptions as? [CMFormatDescription], let format = formats.first,
+              includeVideo == (sourceVideo != nil),
               asset.duration.isNumeric, CMTimeCompare(asset.duration, .zero) > 0 else {
             throw MixError.invalidTracksOrVolumes
         }
@@ -60,8 +84,6 @@ enum AudioTrackMixer {
         let reader = try AVAssetReader(asset: asset)
         let range = CMTimeRange(start: .zero, duration: asset.duration)
         reader.timeRange = range
-        let videoOutput = AVAssetReaderTrackOutput(track: video, outputSettings: nil)
-        videoOutput.alwaysCopiesSampleData = false
         let audioOutput = AVAssetReaderAudioMixOutput(audioTracks: audioTracks, audioSettings: [
             AVFormatIDKey: kAudioFormatLinearPCM, AVSampleRateKey: 48_000,
             AVNumberOfChannelsKey: 2, AVLinearPCMBitDepthKey: 32,
@@ -76,29 +98,45 @@ enum AudioTrackMixer {
             return parameters
         }
         audioOutput.audioMix = mix
-        guard reader.canAdd(videoOutput), reader.canAdd(audioOutput) else { throw MediaExportPump.ExportError.invalidSetup }
-        reader.add(videoOutput)
+        guard reader.canAdd(audioOutput) else { throw MediaExportPump.ExportError.invalidSetup }
         reader.add(audioOutput)
+        var videoOutput: AVAssetReaderTrackOutput?
+        if let sourceVideo {
+            let output = AVAssetReaderTrackOutput(track: sourceVideo.track, outputSettings: nil)
+            output.alwaysCopiesSampleData = false
+            guard reader.canAdd(output) else { throw MediaExportPump.ExportError.invalidSetup }
+            reader.add(output)
+            videoOutput = output
+        }
 
-        let writer = try AVAssetWriter(outputURL: save.stagingURL, fileType: .mp4)
+        let fileType: AVFileType = includeVideo ? .mp4
+            : (destination.pathExtension.lowercased() == "m4a" ? .m4a : .mp4)
+        let writer = try AVAssetWriter(outputURL: save.stagingURL, fileType: fileType)
         writer.shouldOptimizeForNetworkUse = true   // fast start (#452)
         if let cadence = VideoFrameCadence.declaredDuration(in: asset.metadata) {
             writer.metadata = VideoFrameCadence.metadata(for: cadence)
         }
-        let videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: nil, sourceFormatHint: format)
-        videoInput.mediaTimeScale = video.naturalTimeScale > 0 ? video.naturalTimeScale : VideoFrameCadence.captureTimeScale
-        videoInput.transform = video.preferredTransform
         let audioInput = AVAssetWriterInput(mediaType: .audio, outputSettings: [
             AVFormatIDKey: kAudioFormatMPEG4AAC, AVSampleRateKey: 48_000,
             AVNumberOfChannelsKey: 2, AVEncoderBitRateKey: 256_000,
         ])
-        guard writer.canAdd(videoInput), writer.canAdd(audioInput) else { throw MediaExportPump.ExportError.invalidSetup }
-        writer.add(videoInput)
+        guard writer.canAdd(audioInput) else { throw MediaExportPump.ExportError.invalidSetup }
         writer.add(audioInput)
-        let pump = MediaExportPump(reader: reader, writer: writer, tracks: [
-            .init(output: videoOutput, input: videoInput, requiresSamples: true),
+        var tracks: [MediaExportPump.Track] = [
             .init(output: audioOutput, input: audioInput, requiresSamples: true),
-        ], timeRange: range, progress: progress)
+        ]
+        if let sourceVideo, let videoOutput {
+            let videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: nil,
+                                                sourceFormatHint: sourceVideo.format)
+            videoInput.mediaTimeScale = sourceVideo.track.naturalTimeScale > 0
+                ? sourceVideo.track.naturalTimeScale : VideoFrameCadence.captureTimeScale
+            videoInput.transform = sourceVideo.track.preferredTransform
+            guard writer.canAdd(videoInput) else { throw MediaExportPump.ExportError.invalidSetup }
+            writer.add(videoInput)
+            tracks.append(.init(output: videoOutput, input: videoInput, requiresSamples: true))
+        }
+        let pump = MediaExportPump(reader: reader, writer: writer, tracks: tracks,
+                                   timeRange: range, progress: progress)
         return Prepared(save: save, pump: pump)
     }
 }

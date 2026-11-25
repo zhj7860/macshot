@@ -154,6 +154,10 @@
 "Highlight Mouse Clicks" = "Egérkattintások kiemelése";
 "Record System Audio" = "Rendszerhang felvétele";
 "Record Microphone" = "Mikrofon felvétele";
+"Record System Audio + Microphone" = "Rendszerhang + mikrofon felvétele";
+"Audio Only" = "Csak hang";
+"Audio + Screen" = "Hang + képernyő";
+"Record only audio, or record audio together with the screen." = "Csak hangot, vagy hangot a képernyővel együtt rögzítsen.";
 "Recording Settings" = "Felvételi beállítások";
 
 /* Tool Options */
@@ -927,3 +931,9 @@
 "Return to stack when editor closes" = "Vissza a verembe a szerkesztő bezárásakor";
 "  Click on preview:" = "  Kattintás az előnézetre:";
 "  When opened in Editor:" = "  Szerkesztőben megnyitva:";
+
+
+/* Scroll capture direction */
+"Vertical" = "Függőleges";
+"Horizontal" = "Vízszintes";
+"Scroll direction" = "Görgetés iránya";

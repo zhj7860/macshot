@@ -28,6 +28,15 @@ enum SaveDirectoryAccess {
     /// How the default folder reads in Settings and in the Save tooltip.
     static var defaultDisplayPath: String { "~/Documents" }
 
+    /// The configured path, or `nil` when the setting is unset or has been cleared.
+    /// An empty path means "no folder chosen", so every decision below treats it like a fresh
+    /// install and saves to `~/Documents` instead of asking or writing to the process' cwd.
+    private static var configuredPath: String? {
+        guard let path = UserDefaults.standard.string(forKey: pathKey) else { return nil }
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     /// Save both the path (for display) and the security-scoped bookmark (for sandbox access).
     static func save(url: URL) {
         UserDefaults.standard.set(url.path, forKey: pathKey)
@@ -77,23 +86,30 @@ enum SaveDirectoryAccess {
     /// sandbox write access, so `write(to:)` will fail. Prefer
     /// `resolveIfAccessible()` for writes that must work in the sandbox.
     static func resolve() -> URL {
+        guard configuredPath != nil else { return defaultDirectory }
         if let url = resolveIfAccessible() { return url }
-        if let path = UserDefaults.standard.string(forKey: pathKey) {
+        if let path = configuredPath {
             return URL(fileURLWithPath: path)
         }
         return defaultDirectory
     }
 
     /// The folder a Save writes into without asking: the configured bookmark when there is one,
-    /// else the shipped `~/Documents`. `nil` means the user configured another folder whose
-    /// bookmark is gone, so the caller has to ask for it again.
+    /// else the shipped `~/Documents`. An unset or cleared (empty) folder setting counts as no
+    /// choice and also saves to `~/Documents`. `nil` means the user configured another folder
+    /// whose bookmark is gone, so the caller has to ask for it again.
     /// `scoped` tells the caller whether it holds sandbox-scoped access it must release.
     static func resolveForSave() -> (url: URL, scoped: Bool)? {
+        guard let configured = configuredPath else {
+            // Unset or cleared: save to the shipped `~/Documents` without asking, exactly like a
+            // fresh install. Any bookmark left behind by the cleared folder is ignored.
+            try? FileManager.default.createDirectory(at: defaultDirectory, withIntermediateDirectories: true)
+            return (defaultDirectory, false)
+        }
         if let url = resolveIfAccessible() { return (url, true) }
-        let configured = UserDefaults.standard.string(forKey: pathKey)
         // A stored path equal to the default is a folder that needs no bookmark (the app is not
         // sandboxed), so it saves directly like the unconfigured case.
-        if configured == nil || configured == defaultDirectory.path {
+        if configured == defaultDirectory.path {
             try? FileManager.default.createDirectory(at: defaultDirectory, withIntermediateDirectories: true)
             return (defaultDirectory, false)
         }
@@ -104,7 +120,7 @@ enum SaveDirectoryAccess {
     /// Use this for NSSavePanel/NSOpenPanel `directoryURL` hints — they handle
     /// their own sandbox access via powerbox.
     static func directoryHint() -> URL? {
-        if let path = UserDefaults.standard.string(forKey: pathKey) {
+        if let path = configuredPath {
             return URL(fileURLWithPath: path)
         }
         return defaultDirectory
@@ -117,7 +133,7 @@ enum SaveDirectoryAccess {
 
     /// The display path for the settings UI.
     static var displayPath: String {
-        UserDefaults.standard.string(forKey: pathKey) ?? defaultDisplayPath
+        configuredPath ?? defaultDisplayPath
     }
 
     // MARK: - Recording save directory (optional, falls back to general)
@@ -159,6 +175,23 @@ enum SaveDirectoryAccess {
             }
         }
         return url
+    }
+
+    /// The folder a finished recording is published into without asking:
+    /// the recording bookmark when one exists, else the general save folder
+    /// (an unset recording folder means "same as screenshots", whose shipped
+    /// default is `~/Documents`). `nil` means a configured folder lost its
+    /// bookmark and the caller must ask for it again.
+    static func resolveRecordingForSave() -> (url: URL, scoped: Bool)? {
+        let path = UserDefaults.standard.string(forKey: recPathKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let path, !path.isEmpty else { return resolveForSave() }
+        if let url = resolveRecordingDirectoryIfAccessible() { return (url, true) }
+        if path == defaultDirectory.path {
+            try? FileManager.default.createDirectory(at: defaultDirectory, withIntermediateDirectories: true)
+            return (defaultDirectory, false)
+        }
+        return nil
     }
 
     static func recordingDirectoryHint() -> URL? {

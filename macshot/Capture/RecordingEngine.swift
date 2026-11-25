@@ -357,6 +357,10 @@ final class RecordingEngine: NSObject {
             }
             output.onStopped = { [weak self] error in
                 guard let self = self, self.lifecycle.isCurrent(sessionID) else { return }
+                // `stopCapture()` reports SCStreamErrorUserStopped to the
+                // delegate; the stop path already owns finalization, so a
+                // normal stop must not be recorded as an interruption.
+                if self.state == .stopping { return }
                 self.stopRecording(error: error)
             }
             self.streamOutput = output

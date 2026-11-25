@@ -150,6 +150,10 @@
 "Highlight Mouse Clicks" = "Evidențiază clicurile mouse-ului";
 "Record System Audio" = "Înregistrează sunetul sistemului";
 "Record Microphone" = "Înregistrează microfonul";
+"Record System Audio + Microphone" = "Înregistrează sunetul sistemului + microfonul";
+"Audio Only" = "Doar audio";
+"Audio + Screen" = "Audio + ecran";
+"Record only audio, or record audio together with the screen." = "Înregistrează doar audio sau audio împreună cu ecranul.";
 "Recording Settings" = "Setări înregistrare";
 
 /* Tool Options */
@@ -927,3 +931,9 @@
 "Return to stack when editor closes" = "Revino în stivă la închiderea editorului";
 "  Click on preview:" = "  Clic pe previzualizare:";
 "  When opened in Editor:" = "  La deschiderea în editor:";
+
+
+/* Scroll capture direction */
+"Vertical" = "Vertical";
+"Horizontal" = "Orizontal";
+"Scroll direction" = "Direcția de derulare";

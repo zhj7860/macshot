@@ -220,7 +220,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     private var terminatingAfterRecording = false
     private let terminationCoordinator = ApplicationTerminationCoordinator()
     private var recordingTerminationWaiter: CheckedContinuation<Void, Never>?
-    private var audioMergeControllers: [UUID: AudioMergeController] = [:]
     private var recordingOverlayController: OverlayWindowController?
     private var recordingHUDPanel: RecordingHUDPanel?
     private var recordingScreenRect: NSRect = .zero  // screen-space capture rect
@@ -237,6 +236,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     private var scrollCaptureOverlayController: OverlayWindowController?
     private var scrollCapturePreviewPanel: ScrollCapturePreviewPanel?
     private var statusBarMenu: NSMenu?
+    private var audioRecordingEngine: AudioRecordingEngine?
+    private var audioRecordingStartDate: Date?
     private var captureSessionID: UInt = 0
     private var captureTimingTrace: CaptureTimingTrace?
     /// Launch Services can deliver file/URL open requests before
@@ -863,6 +864,107 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         }
     }
 
+    /// Asks whether the audio sources should be recorded alone or with the
+    /// screen, then starts the matching flow.
+    @objc private func recordAudioChoice() {
+        let alert = NSAlert()
+        alert.messageText = L("Record System Audio + Microphone")
+        alert.informativeText = L("Record only audio, or record audio together with the screen.")
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: L("Audio Only"))
+        alert.addButton(withTitle: L("Audio + Screen"))
+        alert.addButton(withTitle: L("Cancel"))
+        alert.buttons.last?.keyEquivalent = "\u{1b}"
+        NSApp.activate(ignoringOtherApps: true)
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            enableAudioSources { [weak self] in self?.beginAudioRecording() }
+        case .alertSecondButtonReturn:
+            enableAudioSources { [weak self] in self?.recordArea() }
+        default:
+            break
+        }
+    }
+
+    /// Turns both sources on before an audio take, requesting microphone
+    /// access once. A denied microphone still leaves system audio usable.
+    private func enableAudioSources(then action: @escaping () -> Void) {
+        let defaults = UserDefaults.standard
+        if #available(macOS 13.0, *) {
+            defaults.set(true, forKey: "recordSystemAudio")
+        }
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .authorized:
+            defaults.set(true, forKey: "recordMicAudio")
+            action()
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .audio) { granted in
+                DispatchQueue.main.async {
+                    if granted {
+                        UserDefaults.standard.set(true, forKey: "recordMicAudio")
+                    }
+                    action()
+                }
+            }
+        case .denied, .restricted:
+            defaults.set(false, forKey: "recordMicAudio")
+            MicrophonePermission.showAccessAlert()
+            action()
+        @unknown default:
+            action()
+        }
+    }
+
+    /// Starts an audio-only take with the floating timer/stop HUD.
+    private func beginAudioRecording() {
+        guard audioRecordingEngine == nil, recordingEngine == nil else { return }
+        let startDate = Date()
+        audioRecordingStartDate = startDate
+        let engine = AudioRecordingEngine()
+        audioRecordingEngine = engine
+        engine.onProgress = { [weak self] seconds in
+            self?.recordingHUDPanel?.update(elapsedSeconds: seconds)
+        }
+        engine.onPauseChanged = { [weak self] paused in
+            self?.recordingHUDPanel?.setPaused(paused)
+        }
+        engine.onCompletion = { [weak self] url, error in
+            guard let self = self else { return }
+            self.stopAudioRecordingUI()
+            if let error = error {
+                self.showFailureToast(String(format: L("Recording failed: %@"),
+                                             error.localizedDescription))
+            }
+            if let url = url {
+                self.revealRecordingInFinder(tmpURL: url, appName: nil, date: startDate)
+            }
+        }
+
+        let hud = RecordingHUDPanel()
+        hud.update(elapsedSeconds: 0)
+        if let screen = NSScreen.main {
+            let visible = screen.visibleFrame
+            hud.positionOnScreen(relativeTo: NSRect(x: visible.maxX - 60, y: visible.maxY - 60,
+                                                    width: 40, height: 40), screen: screen)
+        }
+        hud.onStopRecording = { [weak self] in self?.audioRecordingEngine?.stopRecording() }
+        hud.onPauseRecording = { [weak self] in self?.audioRecordingEngine?.pauseRecording() }
+        hud.onResumeRecording = { [weak self] in self?.audioRecordingEngine?.resumeRecording() }
+        hud.orderFrontRegardless()
+        recordingHUDPanel = hud
+
+        enterRecordingMenuBarMode()
+        engine.startRecording()
+    }
+
+    private func stopAudioRecordingUI() {
+        recordingHUDPanel?.close()
+        recordingHUDPanel = nil
+        audioRecordingEngine = nil
+        audioRecordingStartDate = nil
+        exitRecordingMenuBarMode()
+    }
+
     private func rebuildStatusBarMenu() {
         let menu = NSMenu()
         menu.autoenablesItems = false
@@ -911,6 +1013,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         recordScreenItem.keepImageVisible()
         HotkeyManager.applyMenuShortcut(for: .recordScreen, to: recordScreenItem)
         menu.addItem(recordScreenItem)
+
+        // Audio can be recorded alone or together with the screen; the choice
+        // is made in the confirmation dialog this item opens.
+        let recordAudioItem = NSMenuItem(title: L("Record System Audio + Microphone"),
+                                         action: #selector(recordAudioChoice), keyEquivalent: "")
+        recordAudioItem.target = self
+        recordAudioItem.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: nil)
+        recordAudioItem.keepImageVisible()
+        menu.addItem(recordAudioItem)
 
         menu.addItem(NSMenuItem.separator())
 
@@ -3122,13 +3233,12 @@ extension AppDelegate: OverlayWindowControllerDelegate {
                     self.deliverFinishedRecording(finalURL, onStop: onStop, output: output)
                 }
 
-                // Offer audio merge when both mic + system audio were recorded
-                if hadSystemAudio && hadMicAudio {
-                    let merger = AudioMergeController()
-                    let mergeID = UUID()
-                    self.audioMergeControllers[mergeID] = merger
-                    merger.show(url: url) { [weak self] finalURL in
-                        self?.audioMergeControllers.removeValue(forKey: mergeID)
+                // Recorded both sources: deliver one mixed track instead of a
+                // file whose second track most players ignore.
+                if RecordingAudioMix.shouldMix(systemAudio: hadSystemAudio,
+                                               microphone: hadMicAudio,
+                                               isGIF: output.isGIF) {
+                    self.mixRecordingAudio(url) { finalURL in
                         deliverRecording(finalURL)
                     }
                 } else {
@@ -3271,6 +3381,10 @@ extension AppDelegate: OverlayWindowControllerDelegate {
     // MARK: - Recording UI
 
     @objc private func stopRecording() {
+        if let audio = audioRecordingEngine {
+            audio.stopRecording()
+            return
+        }
         guard let engine = recordingEngine else { return }
         engine.stopRecording()
     }
@@ -3312,6 +3426,31 @@ extension AppDelegate: OverlayWindowControllerDelegate {
             setMenuBarIconVisible(false)
             menuBarIconWasHidden = false
         }
+    }
+
+    /// Combines a take's microphone and system-audio tracks into one AAC track
+    /// with the video passed through unencoded. The original stays in the
+    /// recording library, and a failed or cancelled mix delivers that original
+    /// so a take is never lost.
+    private func mixRecordingAudio(_ source: URL, completion: @escaping (URL) -> Void) {
+        let destination = RecordingAudioMix.destination(beside: source)
+        let job = MediaExportCoordinator.shared.start(title: source.lastPathComponent,
+            status: L("Exporting..."),
+            operation: { cancellation, progress in
+                try await AudioTrackMixer.export(source: source, destination: destination,
+                    volumes: RecordingAudioMix.volumes, cancellation: cancellation, progress: progress)
+            }, completion: { [weak self] result in
+                switch result {
+                case .success:
+                    completion(destination)
+                case .failure(let error):
+                    if !(error is CancellationError), !(error is AudioTrackMixer.MixError) {
+                        self?.showFailureToast(L("Export failed") + ": " + error.localizedDescription)
+                    }
+                    completion(source)
+                }
+            })
+        MediaExportProgressController.show(for: job)
     }
 
     private func deliverFinishedRecording(_ finalURL: URL, onStop: String, output: RecordingOutput) {
@@ -3361,13 +3500,13 @@ extension AppDelegate: OverlayWindowControllerDelegate {
     /// file to the clipboard, like a screenshot's "Save + copy".
     private func archiveRecording(tmpURL: URL, appName: String?, date: Date) {
         let copySaved: (URL) -> Void = { [weak self] in self?.copyRecordingToClipboard(url: $0) }
-        guard let directory = SaveDirectoryAccess.resolveRecordingDirectoryIfAccessible()
-            ?? SaveDirectoryAccess.resolveIfAccessible() else {
+        guard let save = SaveDirectoryAccess.resolveRecordingForSave() else {
             promptToSaveRecording(tmpURL: tmpURL, revealInFinder: false, onSuccess: copySaved)
             return
         }
+        let directory = save.url
         let destination = recordingDestination(for: tmpURL, in: directory, appName: appName, date: date)
-        let access = SaveDirectoryLease(alreadyAccessing: directory)
+        let access = SaveDirectoryLease(alreadyAccessing: save.scoped ? directory : nil)
         saveRecordingCopy(source: tmpURL, destination: destination, avoidCollisions: true, access: access,
                           revealInFinder: false, subfoldersBelow: directory,
                           onSuccess: copySaved) { [weak self] error in
@@ -3396,18 +3535,18 @@ extension AppDelegate: OverlayWindowControllerDelegate {
     ///
     /// Resolution order:
     ///   1. Recording save directory (if configured + bookmark still valid)
-    ///   2. Same as screenshots (if configured + bookmark still valid)
-    ///   3. Save panel — user picks a location explicitly
+    ///   2. Same as screenshots (`~/Documents` when no folder was chosen)
+    ///   3. Save panel — a configured folder whose bookmark was lost
     ///
     /// On a collision at the destination, we append " (N)" to the filename
     /// so nothing gets silently overwritten.
     private func revealRecordingInFinder(tmpURL: URL, appName: String?, date: Date) {
-        guard let directory = SaveDirectoryAccess.resolveRecordingDirectoryIfAccessible()
-            ?? SaveDirectoryAccess.resolveIfAccessible() else {
+        guard let save = SaveDirectoryAccess.resolveRecordingForSave() else {
             promptToSaveRecording(tmpURL: tmpURL)
             return
         }
-        let access = SaveDirectoryLease(alreadyAccessing: directory)
+        let directory = save.url
+        let access = SaveDirectoryLease(alreadyAccessing: save.scoped ? directory : nil)
         saveRecordingCopy(source: tmpURL,
             destination: recordingDestination(for: tmpURL, in: directory, appName: appName, date: date),
             avoidCollisions: true, access: access, subfoldersBelow: directory) { [weak self] error in
@@ -3557,7 +3696,7 @@ extension AppDelegate: OverlayWindowControllerDelegate {
         let maxH = UserDefaults.standard.object(forKey: "scrollMaxHeight") as? Int ?? 30000
 
         // Tell the triggering overlay to enter scroll capture mode
-        controller.setScrollCaptureState(isActive: true, maxHeight: maxH)
+        controller.setScrollCaptureState(isActive: true, maxHeight: maxH, axis: scc.axis)
 
         // Create live preview panel if there's space beside the capture region
         let overlayLevel = 257  // matches overlay window level
@@ -3570,7 +3709,7 @@ extension AppDelegate: OverlayWindowControllerDelegate {
             guard let self = self, let scc = self.scrollCaptureController else { return }
             controller?.updateScrollCaptureProgress(
                 stripCount: count, pixelSize: scc.stitchedPixelSize,
-                autoScrolling: scc.autoScrollActive)
+                autoScrolling: scc.autoScrollActive, axis: scc.axis)
         }
         scc.onPreviewUpdated = { [weak self] image in
             self?.scrollCapturePreviewPanel?.updatePreview(image: image)
@@ -3579,7 +3718,7 @@ extension AppDelegate: OverlayWindowControllerDelegate {
             guard let self = self, let scc = self.scrollCaptureController else { return }
             controller?.updateScrollCaptureProgress(
                 stripCount: scc.stripCount, pixelSize: scc.stitchedPixelSize,
-                autoScrolling: true)
+                autoScrolling: true, axis: scc.axis)
         }
         scc.onSessionDone = { [weak self] finalImage in
             self?.handleScrollCaptureCompleted(finalImage: finalImage)
@@ -3691,7 +3830,17 @@ extension AppDelegate: OverlayWindowControllerDelegate {
         let autoScrolling = scc.isActive && scc.autoScrollActive
         controller.updateScrollCaptureProgress(
             stripCount: scc.stripCount, pixelSize: scc.stitchedPixelSize,
-            autoScrolling: autoScrolling)
+            autoScrolling: autoScrolling, axis: scc.axis)
+    }
+
+    /// The HUD's direction button: switch between scrolling down the page and
+    /// across it. The controller starts the stitch over in the new direction.
+    func overlayDidRequestToggleScrollAxis(_ controller: OverlayWindowController) {
+        guard let scc = scrollCaptureController else { return }
+        scc.toggleAxis()
+        controller.updateScrollCaptureProgress(
+            stripCount: scc.stripCount, pixelSize: scc.stitchedPixelSize,
+            autoScrolling: scc.isActive && scc.autoScrollActive, axis: scc.axis)
     }
 
     func overlayDidBeginSelection(_ controller: OverlayWindowController) {

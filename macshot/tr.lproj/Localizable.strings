@@ -150,6 +150,10 @@
 "Highlight Mouse Clicks" = "Fare Tıklamalarını Vurgula";
 "Record System Audio" = "Sistem Sesini Kaydet";
 "Record Microphone" = "Mikrofonu Kaydet";
+"Record System Audio + Microphone" = "Sistem sesi + mikrofon kaydet";
+"Audio Only" = "Yalnızca Ses";
+"Audio + Screen" = "Ses + Ekran";
+"Record only audio, or record audio together with the screen." = "Yalnızca ses kaydedin veya sesi ekranla birlikte kaydedin.";
 "Recording Settings" = "Kayıt Ayarları";
 
 /* Tool Options */
@@ -929,3 +933,9 @@
 "Return to stack when editor closes" = "Düzenleyici kapanınca yığına geri dön";
 "  Click on preview:" = "  Önizlemeye tıklama:";
 "  When opened in Editor:" = "  Düzenleyicide açıldığında:";
+
+
+/* Scroll capture direction */
+"Vertical" = "Dikey";
+"Horizontal" = "Yatay";
+"Scroll direction" = "Kaydırma yönü";

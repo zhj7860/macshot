@@ -171,6 +171,10 @@
 "Highlight Mouse Clicks" = "Zvýraznit kliknutí myší";
 "Record System Audio" = "Nahrávat systémový zvuk";
 "Record Microphone" = "Nahrávat mikrofon";
+"Record System Audio + Microphone" = "Nahrávat systémový zvuk + mikrofon";
+"Audio Only" = "Pouze zvuk";
+"Audio + Screen" = "Zvuk + obrazovka";
+"Record only audio, or record audio together with the screen." = "Nahrávejte pouze zvuk, nebo zvuk spolu s obrazovkou.";
 "Recording Settings" = "Nastavení nahrávání";
 
 /* Tool Options */
@@ -927,3 +931,9 @@
 "Return to stack when editor closes" = "Vrátit do zásobníku po zavření editoru";
 "  Click on preview:" = "  Kliknutí na náhled:";
 "  When opened in Editor:" = "  Při otevření v editoru:";
+
+
+/* Scroll capture direction */
+"Vertical" = "Svisle";
+"Horizontal" = "Vodorovně";
+"Scroll direction" = "Směr posouvání";

@@ -171,6 +171,10 @@
 "Highlight Mouse Clicks" = "Подсвечивать щелчки мыши";
 "Record System Audio" = "Записывать системный звук";
 "Record Microphone" = "Записывать микрофон";
+"Record System Audio + Microphone" = "Записывать системный звук + микрофон";
+"Audio Only" = "Только звук";
+"Audio + Screen" = "Звук + экран";
+"Record only audio, or record audio together with the screen." = "Записывайте только звук или звук вместе с экраном.";
 "Recording Settings" = "Настройки записи";
 
 /* Tool Options */
@@ -927,3 +931,9 @@
 "Return to stack when editor closes" = "Вернуть в стопку после закрытия редактора";
 "  Click on preview:" = "  Клик по превью:";
 "  When opened in Editor:" = "  При открытии в редакторе:";
+
+
+/* Scroll capture direction */
+"Vertical" = "Вертикально";
+"Horizontal" = "Горизонтально";
+"Scroll direction" = "Направление прокрутки";

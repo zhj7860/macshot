@@ -154,6 +154,10 @@
 "Highlight Mouse Clicks" = "標示滑鼠點按";
 "Record System Audio" = "錄製系統音訊";
 "Record Microphone" = "錄製麥克風";
+"Record System Audio + Microphone" = "錄製系統音訊 + 麥克風";
+"Audio Only" = "僅音訊";
+"Audio + Screen" = "音訊 + 螢幕";
+"Record only audio, or record audio together with the screen." = "僅錄製音訊，或連同螢幕一起錄製音訊。";
 "Recording Settings" = "錄製設定";
 
 /* Tool Options */
@@ -927,3 +931,9 @@
 "Return to stack when editor closes" = "關閉編輯器後返回堆疊";
 "  Click on preview:" = "  按一下預覽:";
 "  When opened in Editor:" = "  在編輯器中開啟時:";
+
+
+/* Scroll capture direction */
+"Vertical" = "縱向";
+"Horizontal" = "橫向";
+"Scroll direction" = "捲動方向";

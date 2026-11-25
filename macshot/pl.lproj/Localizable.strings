@@ -155,6 +155,10 @@
 "Highlight Mouse Clicks" = "Podświetlaj kliknięcia myszy";
 "Record System Audio" = "Nagrywaj dźwięk systemowy";
 "Record Microphone" = "Nagrywaj mikrofon";
+"Record System Audio + Microphone" = "Nagrywaj dźwięk systemowy + mikrofon";
+"Audio Only" = "Tylko dźwięk";
+"Audio + Screen" = "Dźwięk + ekran";
+"Record only audio, or record audio together with the screen." = "Nagrywaj tylko dźwięk lub dźwięk razem z ekranem.";
 "Recording Settings" = "Ustawienia nagrywania";
 
 /* Tool Options */
@@ -925,3 +929,9 @@
 "Return to stack when editor closes" = "Przywróć do stosu po zamknięciu edytora";
 "  Click on preview:" = "  Kliknięcie podglądu:";
 "  When opened in Editor:" = "  Po otwarciu w edytorze:";
+
+
+/* Scroll capture direction */
+"Vertical" = "Pionowo";
+"Horizontal" = "Poziomo";
+"Scroll direction" = "Kierunek przewijania";

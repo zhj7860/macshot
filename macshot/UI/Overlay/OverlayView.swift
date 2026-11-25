@@ -26,6 +26,7 @@ protocol OverlayViewDelegate: AnyObject {
     func overlayViewDidRequestStopScrollCapture()
     func overlayViewDidRequestCancelScrollCapture()
     func overlayViewDidRequestToggleAutoScroll()
+    func overlayViewDidRequestToggleScrollAxis()
     func overlayViewDidRequestAccessibilityPermission()
     func overlayViewDidRequestInputMonitoringPermission()
     func overlayViewDidBeginSelection()
@@ -850,6 +851,7 @@ class OverlayView: NSView {
     var scrollCapturePixelSize: CGSize = .zero
     var scrollCaptureMaxHeight: Int = 0
     var scrollCaptureAutoScrolling: Bool = false
+    var scrollCaptureAxis: ScrollAxis = .vertical
     private var scrollCaptureHUDPanel: ScrollCaptureHUDPanel?
     private var scrollCaptureMouseTap: CFMachPort?
     private var scrollCaptureMouseTapSource: CFRunLoopSource?
@@ -953,11 +955,15 @@ class OverlayView: NSView {
         panel.hudView.onToggleAutoScroll = { [weak self] in
             self?.overlayDelegate?.overlayViewDidRequestToggleAutoScroll()
         }
+        panel.hudView.onToggleAxis = { [weak self] in
+            self?.overlayDelegate?.overlayViewDidRequestToggleScrollAxis()
+        }
         panel.hudView.update(
             stripCount: 0, pixelSize: .zero,
             backingScale: window?.backingScaleFactor ?? 2,
             maxScrollHeight: scrollCaptureMaxHeight,
-            autoScrolling: scrollCaptureAutoScrolling)
+            autoScrolling: scrollCaptureAutoScrolling,
+            axis: scrollCaptureAxis)
         if let win = window {
             panel.position(relativeTo: selectionRect, in: win)
         }
@@ -1011,7 +1017,8 @@ class OverlayView: NSView {
             pixelSize: scrollCapturePixelSize,
             backingScale: window?.backingScaleFactor ?? 2,
             maxScrollHeight: scrollCaptureMaxHeight,
-            autoScrolling: scrollCaptureAutoScrolling)
+            autoScrolling: scrollCaptureAutoScrolling,
+            axis: scrollCaptureAxis)
         if let win = window {
             scrollCaptureHUDPanel?.position(relativeTo: selectionRect, in: win)
         }
@@ -8940,6 +8947,8 @@ class OverlayView: NSView {
             rebuildToolbarLayout()
         case .micAudio:
             toggleMicAudio()
+        case .combinedAudio:
+            toggleCombinedAudio()
         case .webcam:
             toggleWebcamOverlay()
         case .cancel:
@@ -9528,22 +9537,49 @@ class OverlayView: NSView {
         }
     }
 
-    private func showMicPermissionAlert() {
-        let alert = NSAlert()
-        alert.messageText = L("Microphone Access Required")
-        alert.informativeText =
-            L("macshot needs microphone permission to record voice audio. Open System Settings to grant access.")
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: L("Open Settings"))
-        alert.addButton(withTitle: L("Cancel"))
-        let response = alert.runModal()
-        if response == .alertFirstButtonReturn {
-            if let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"
-            ) {
-                NSWorkspace.shared.open(url)
-            }
+    /// One switch for recording system audio and the microphone together. The
+    /// finished take is delivered as one mixed track; the individual buttons
+    /// below stay available for either source alone.
+    private func toggleCombinedAudio() {
+        let defaults = UserDefaults.standard
+        let bothOn = defaults.bool(forKey: "recordSystemAudio")
+            && defaults.bool(forKey: "recordMicAudio")
+        if bothOn {
+            defaults.set(false, forKey: "recordSystemAudio")
+            defaults.set(false, forKey: "recordMicAudio")
+            stopMicLevelMonitor()
+            return
         }
+        // System audio needs no permission prompt. Turn it on first so a
+        // microphone denial still leaves a usable half of the combination.
+        defaults.set(true, forKey: "recordSystemAudio")
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .authorized:
+            defaults.set(true, forKey: "recordMicAudio")
+            startMicLevelMonitor()
+        case .notDetermined:
+            // Lower overlay so the system permission dialog is clickable
+            let savedLevel = window?.level
+            window?.level = .normal
+            AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
+                DispatchQueue.main.async {
+                    if let saved = savedLevel { self?.window?.level = saved }
+                    if granted {
+                        UserDefaults.standard.set(true, forKey: "recordMicAudio")
+                        self?.startMicLevelMonitor()
+                    }
+                    self?.rebuildToolbarLayout()
+                }
+            }
+        case .denied, .restricted:
+            showMicPermissionAlert()
+        @unknown default:
+            break
+        }
+    }
+
+    private func showMicPermissionAlert() {
+        MicrophonePermission.showAccessAlert()
     }
 
     // MARK: - Mic Level Monitor

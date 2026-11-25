@@ -150,6 +150,10 @@
 "Highlight Mouse Clicks" = "برجسته‌سازی کلیک‌های موس";
 "Record System Audio" = "ضبط صدای سیستم";
 "Record Microphone" = "ضبط میکروفون";
+"Record System Audio + Microphone" = "ضبط صدای سیستم + میکروفون";
+"Audio Only" = "فقط صدا";
+"Audio + Screen" = "صدا + صفحه";
+"Record only audio, or record audio together with the screen." = "فقط صدا ضبط کنید یا صدا همراه با صفحه.";
 "Recording Settings" = "تنظیمات ضبط ویدیو";
 
 /* Tool Options */
@@ -929,3 +933,9 @@
 "Return to stack when editor closes" = "بازگشت به پشته پس از بستن ویرایشگر";
 "  Click on preview:" = "  کلیک روی پیش‌نمایش:";
 "  When opened in Editor:" = "  هنگام باز شدن در ویرایشگر:";
+
+
+/* Scroll capture direction */
+"Vertical" = "عمودی";
+"Horizontal" = "افقی";
+"Scroll direction" = "جهت پیمایش";
